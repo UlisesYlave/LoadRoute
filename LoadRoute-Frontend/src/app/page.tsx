@@ -150,19 +150,19 @@ export default function Home() {
           </div>
 
           {/* Ocupación Legend */}
-          <div className="flex items-center gap-3 bg-[#0c1a30]/80 border border-slate-700/50 px-4 py-2 rounded-lg text-[10px] uppercase tracking-tighter">
-            <span className="text-slate-500 font-semibold mr-1">Capacidad:</span>
+          <div className="flex items-center gap-4 bg-[#0c1a30]/80 border border-slate-700/50 px-5 py-2.5 rounded-xl text-xs uppercase tracking-tight">
+            <span className="text-slate-300 font-bold mr-1">Capacidad:</span>
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              <span className="text-slate-300">0-30%</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+              <span className="text-slate-200">0-30%</span>
             </div>
-            <div className="flex items-center gap-1.5 border-l border-slate-700/50 pl-3">
-              <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-              <span className="text-slate-300">31-70%</span>
+            <div className="flex items-center gap-1.5 border-l border-slate-700/50 pl-4">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
+              <span className="text-slate-200">31-70%</span>
             </div>
-            <div className="flex items-center gap-1.5 border-l border-slate-700/50 pl-3">
-              <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
-              <span className="text-slate-300">71-100%</span>
+            <div className="flex items-center gap-1.5 border-l border-slate-700/50 pl-4">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]" />
+              <span className="text-slate-200">71-100%</span>
             </div>
           </div>
         </div>

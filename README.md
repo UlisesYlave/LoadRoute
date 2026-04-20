@@ -1,402 +1,78 @@
-# LoadRoute - PoC Sistema de Planificación y Ruteo Logístico
+# 🏢 LoadRoute - Optimización Logística Global
 
-**Prueba de Concepto (PoC) de un Sistema Completo de Planificación Logística con Algoritmos de Optimización**
+Sistema avanzado de planificación y ruteo basado en metaheurísticas para la optimización de transporte de carga aérea.
 
-## 📋 Descripción General
+![Preview Dashboard](https://img.shields.io/badge/Status-Functional-emerald)
+![Tech Backend](https://img.shields.io/badge/Backend-Java_17_%7C_Spring_Boot_3-red)
+![Tech Frontend](https://img.shields.io/badge/Frontend-Next.js_14_%7C_Tailwind-blue)
 
-LoadRoute es un sistema Full-Stack para la planificación y ruteo de envíos logísticos. Compara dos algoritmos de optimización metaheurística:
+## 🎯 Propósito
+LoadRoute es una plataforma diseñada para resolver el problema de ruteo de envíos internacionales bajo restricciones estrictas de tiempo (SLA) y capacidad. El sistema permite cargar planes de vuelo, aeropuertos y envíos para generar rutas óptimas que minimizan el tiempo de tránsito y penalizan el incumplimiento de capacidad tanto en aviones como en almacenes.
 
-- **Simulated Annealing (SA)**: Metaheurística clásica inspirada en el enfriamiento del acero
-- **ALNS**: Adaptive Large-Neighborhood Search, una metaheurística más avanzada y adaptativa
+## 🚀 Tecnologías Utilizadas
 
-### Stack Tecnológico
+### Core & Algoritmos (Backend)
+- **Java 17 & Spring Boot 3.2**: Base robusta para el motor de optimización.
+- **ALNS (Adaptive Large Neighborhood Search)**: Algoritmo de vecindad variable para explorar soluciones complejas.
+- **Simulated Annealing (SA)**: Metaheurística de enfriamiento para escapar de óptimos locales.
+- **Temporal Occupancy Engine**: Seguimiento exacto minuto a minuto de la carga en cada aeropuerto.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                          Frontend                            │
-│    Next.js 14 | React 18 | TypeScript | Tailwind CSS       │
-│              Visualizador Canvas (SVG)                       │
-│                  http://localhost:3000                       │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                    HTTP REST
-                    (CORS enabled)
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────────┐
-│                       Backend                               │
-│    Spring Boot 3+ | Java 17+ | JPA/Hibernate             │
-│   GET /api/rutas/sa  (Simulated Annealing)                │
-│   GET /api/rutas/alns (ALNS Algorithm)                    │
-│                  http://localhost:8080                      │
-└────────────────────────┬─────────────────────────────────┘
-                         │
-                   JDBC / Hibernate
-                         │
-                         ▼
-┌────────────────────────────────────────────────────────────┐
-│                   Database Layer                            │
-│     PostgreSQL 16 | Docker | SQL                          │
-│      localhost:5432 | loadroute database                   │
-└────────────────────────────────────────────────────────────┘
-```
+### Interfaz & Visualización (Frontend)
+- **Next.js 14 (App Router)**: Framework de React para una experiencia fluida.
+- **Tailwind CSS**: Estilizado moderno con estética premium.
+- **Leaflet & React-Leaflet**: Visualización geoespacial de rutas y flotas en tiempo real.
+- **Lucide Icons**: Iconografía profesional.
 
-## 🎯 Objetivo
+## 🧠 Características del Algoritmo
+El motor de ruteo actual implementa reglas de negocio avanzadas:
+- **Restricciones de Capacidad**: Control estricto de maletas por vuelo y por almacén de aeropuerto.
+- **Penalizaciones Soft**: Se permiten excesos críticos bajo una penalización de costo muy alta para mantener la factibilidad.
+- **Lógica de Almacenamiento**: Los paquetes solo ocupan espacio en el origen y aeropuertos de escala, liberando capacidad inmediatamente al llegar a su destino final.
+- **Optimización de SLA**: Diferenciación automática entre vuelos intercontinentales (48h) e intracontinentales (24h).
 
-Crear un esqueleto funcional modular y expandible que permita:
-1. **Fase PoC (actual)**: Validar flujo completo con mocks
-2. **Fase Real**: Reemplazar servicios mock con algoritmos verdaderos
-3. **Fase Escalado**: Agregar persistencia, autenticación, reportes
-
-## 📁 Estructura de Carpetas
-
-```
-LoadRoute/
-│
-├── docker-compose.yml                        [PostgreSQL + Config]
-├── init.sql                                  [Datos iniciales]
-├── README.md                                 [Este archivo]
-│
-├── LoadRoute-Backend/                        [Spring Boot API]
-│   ├── pom.xml
-│   ├── README.md                             [Backend Docs]
-│   └── src/main/java/com/loadroute/
-│       ├── LoadRouteApplication.java         [Main]
-│       ├── config/
-│       │   └── CorsConfig.java
-│       ├── model/
-│       │   ├── Aeropuerto.java              [Entity]
-│       │   ├── Vuelo.java                   [Entity]
-│       │   └── Envio.java                   [Entity]
-│       ├── repository/
-│       │   ├── AeropuertoRepository.java    [JPA Repo]
-│       │   └── VueloRepository.java
-│       ├── service/
-│       │   ├── RuteoService.java            [Interface]
-│       │   ├── SimulatedAnnealingService.java
-│       │   └── ALNSService.java
-│       ├── controller/
-│       │   └── RutasController.java         [REST API]
-│       └── dto/
-│           └── RutaResponseDTO.java
-│   └── src/main/resources/
-│       └── application.yml
-│
-└── LoadRoute-Frontend/                       [Next.js UI]
-    ├── package.json
-    ├── README.md                             [Frontend Docs]
-    ├── tailwind.config.ts
-    ├── next.config.ts
-    ├── tsconfig.json
-    └── src/
-        ├── app/
-        │   ├── page.tsx                      [Home Page]
-        │   ├── layout.tsx
-        │   └── globals.css
-        ├── components/
-        │   ├── VisualizadorRutas.tsx        [Canvas Drawer]
-        │   ├── ControlPanel.tsx              [Buttons]
-        │   └── Legend.tsx
-        ├── services/
-        │   └── ruteoService.ts               [API Client]
-        ├── types/
-        │   └── rutas.ts                      [TypeScript Interfaces]
-        ├── config/
-        │   └── constants.ts                  [URLs, Colors, etc]
-        └── public/                           [Static Assets]
-```
-
-## 🚀 Quick Start
+## 🛠️ Instalación y Ejecución
 
 ### Requisitos Previos
+- **JDK 17** o superior.
+- **Node.js 18** o superior.
+- **Maven 3.8+**.
 
+### Paso 1: Configurar el Backend
 ```bash
-# Backend
-- Java 17+ (test con: java -version)
-- Maven 3.8+ (test con: mvn -v)
-- Docker & Docker Compose (test con: docker --version)
-
-# Frontend
-- Node.js 18+ (test con: node -v)
-- npm 9+ (test con: npm -v)
-```
-
-### 1. Iniciar Base de Datos (PostgreSQL)
-
-```bash
-cd LoadRoute
-docker-compose up -d
-
-# Verificar
-docker ps  # Debería mostrar loadroute-postgres RUNNING
-```
-
-### 2. Iniciar Backend (Spring Boot)
-
-En otra terminal:
-
-```bash
+# Navegar al directorio
 cd LoadRoute-Backend
+
+# Compilar el proyecto
 mvn clean install
+
+# Ejecutar el servidor
 mvn spring-boot:run
-
-# Verificar
-curl http://localhost:8080/api/rutas/health
-# Respuesta: "Sistema de Ruteo Logístico - OK"
 ```
+El servidor estará disponible en `http://localhost:8080`.
 
-### 3. Iniciar Frontend (Next.js)
-
-En otra terminal:
-
+### Paso 2: Configurar el Frontend
 ```bash
+# Navegar al directorio
 cd LoadRoute-Frontend
+
+# Instalar dependencias
 npm install
+
+# Iniciar servidor de desarrollo
 npm run dev
-
-# Abre http://localhost:3000 en el navegador
 ```
+Accede a la interfaz en `http://localhost:3000`.
 
-### 4. Usar la Aplicación
+## 📁 Estructura del Proyecto
+- **/LoadRoute-Backend**: Código fuente de la API y el motor algorítmico.
+- **/LoadRoute-Frontend**: Dashboard de usuario y visualización de mapas.
+- **/docs**: (Opcional) Documentación adicional sobre los algoritmos ALNS/SA.
 
-1. Verifica que el header muestre "✅ Backend ACTIVO"
-2. Haz clic en "Simular con SA" → Se dibuja una ruta en púrpura
-3. Haz clic en "Simular con ALNS" → Se dibuja una ruta en verde
-4. Observa la tabla con detalles de vuelos
-5. Haz clic en "Limpiar" para resetear
-
-## 🏗️ Arquitectura
-
-### Backend: Patrones y Diseño
-
-**Pattern: Layered Architecture**
-```
-Controller Layer     (RutasController)
-    ↓
-Service Layer       (RuteoService + Implementaciones)
-    ↓
-Repository Layer    (AeropuertoRepository, VueloRepository)
-    ↓
-Database Layer      (PostgreSQL JPA/Hibernate)
-```
-
-**Pattern: Strategy Pattern**
-- Interfaz `RuteoService`
-- Dos implementaciones: `SimulatedAnnealingService`, `ALNSService`
-- Permite agregar .nuevos algoritmos sin cambiar Controller
-
-**Pattern: DTO**
-- Entities JPA (`Aeropuerto`, `Vuelo`, `Envio`) ≠ DTOs (`RutaResponseDTO`)
-- Desacopla persistencia de API responses
-
-### Frontend: Patrones y Diseño
-
-**Next.js 14 App Router**: 
-- `src/app/page.tsx` = página principal
-- `src/app/layout.tsx` = layout global
-
-**Client Components**:
-- `VisualizadorRutas.tsx`, `ControlPanel.tsx`, `Legend.tsx` con `'use client'`
-- State management con `useState`
-
-**Custom Hooks**:
-- `useEffect` para verificar salud del backend
-
-**Visualización Canvas**:
-- Dibuja nodos y líneas basado en coordenadas geográficas
-- Auto-scaling para encajar todos los puntos
-- Sin dependencias externas (verdadero SVG/Canvas nativo)
-
-## 🧪 APIs Disponibles
-
-### GET /api/rutas/sa
-Ejecuta Simulated Annealing
-
-```bash
-curl http://localhost:8080/api/rutas/sa
-```
-
-**Respuesta:**
-```json
-{
-  "algoritmo": "SIMULATED_ANNEALING",
-  "timestamp": "2024-04-15T10:30:00",
-  "vuelos": [
-    {
-      "id": 1,
-      "origen": { "id": 1, "codigo": "AEPB", "latitud": -34.6037, "longitud": -58.3816, "nombre": "..." },
-      "destino": { ... },
-      "capacidad": 100,
-      "orden": 1
-    },
-    ...
-  ],
-  "distanciaTotal": 2400.5,
-  "capacidadUtilizada": 150
-}
-```
-
-### GET /api/rutas/alns
-Ejecuta ALNS (mismo formato que SA)
-
-### GET /api/rutas/health
-Verifica que servidor está activo
-
-```bash
-curl http://localhost:8080/api/rutas/health
-# Respuesta: "Sistema de Ruteo Logístico - OK"
-```
-
-## 📊 Base de Datos
-
-### Tablas
-
-```sql
--- Aeropuertos (nodos)
-CREATE TABLE aeropuertos (
-  id SERIAL PRIMARY KEY,
-  codigo VARCHAR(10) UNIQUE NOT NULL,
-  latitud DECIMAL NOT NULL,
-  longitud DECIMAL NOT NULL,
-  nombre VARCHAR(255)
-);
-
--- Vuelos (aristas/rutas)
-CREATE TABLE vuelos (
-  id SERIAL PRIMARY KEY,
-  aeropuerto_origen_id BIGINT REFERENCES aeropuertos(id),
-  aeropuerto_destino_id BIGINT REFERENCES aeropuertos(id),
-  capacidad INTEGER NOT NULL
-);
-
--- Envíos (carga)
-CREATE TABLE envios (
-  id SERIAL PRIMARY KEY,
-  aeropuerto_origen_id BIGINT REFERENCES aeropuertos(id),
-  aeropuerto_destino_id BIGINT REFERENCES aeropuertos(id),
-  cantidad_maletas INTEGER NOT NULL,
-  fecha_creacion TIMESTAMP DEFAULT NOW()
-);
-```
-
-**Datos Iniciales:** 10 aeropuertos argentinos pre-cargados en `init.sql`
-
-## 🔄 Flujo de Datos
-
-```
-Usuario click "Simular SA"
-    ↓
-Frontend: ControlPanel.handleSimularSA()
-    ↓
-Frontend: fetch GET /api/rutas/sa
-    ↓
-Backend: RutasController.ruteoSimulatedAnnealing()
-    ↓
-Backend: SimulatedAnnealingService.ejecutarRuteo()
-    ↓
-Backend: Genera RutaResponseDTO con vuelos mock
-    ↓
-Backend: Retorna JSON
-    ↓
-Frontend: recibe JSON → actualiza state → re-render
-    ↓
-Frontend: VisualizadorRutas dibuja Canvas
-    ↓
-Usuario ve ruta en pantalla
-```
-
-## 🎨 Colores y Styling
-
-| Elemento | Color | Código |
-|----------|-------|--------|
-| Nodos (Aeropuertos) | Azul | `#3B82F6` |
-| Rutas SA | Púrpura | `#8B5CF6` |
-| Rutas ALNS | Verde | `#10B981` |
-| Botón SA | Púrpura | `bg-purple-600` |
-| Botón ALNS | Verde | `bg-green-600` |
-
-## 📝 Notas de Implementación
-
-### Fase PoC (Actual)
-- ✅ Estructura base creada
-- ✅ APIs funcionando
-- ✅ Servicios retornan datos mock
-- ✅ Visualizador Canvas dibuja correctamente
-- ✅ CORS configurado
-- ✅ PostgreSQL integrado
-
-### Próximas Fases
-
-**Fase 1: Algoritmos Reales (2-4 semanas)**
-- Implementar lógica real de Simulated Annealing en `SimulatedAnnealingService`
-- Implementar lógica real de ALNS en `ALNSService`
-- Agregar parámetros configurables (temperatura inicial, cooling rate, etc)
-- Agregar métricas (tiempo ejecución, iteraciones, mejora %t)
-
-**Fase 2: Features Avanzadas (4-8 semanas)**
-- Persistencia de resultados en BD
-- Caché de resultados similares
-- Endpoint para cargar datos propios (CSV de envíos)
-- Endpoint para comparar algoritmos
-- Autenticación con JWT
-- Documentación Swagger/OpenAPI
-
-**Fase 3: UI/UX Mejorada**
-- Comparación side-by-side SA vs ALNS
-- Filtros avanzados
-- Exportar resultados (CSV, PDF, JSON)
-- Integración con mapas reales (Google Maps / Mapbox)
-- Dashboard con estadísticas
-
-## 🐛 Troubleshooting
-
-**❌ Backend INACTIVO**
-```bash
-# Verifica que Spring Boot está corriendo
-netstat -tuln | grep 8080
-# Si no aparece, ejecuta: cd LoadRoute-Backend && mvn spring-boot:run
-```
-
-**❌ Error CORS desde Frontend**
-```bash
-# Verifica CorsConfig.java permite localhost:3000
-# Si no, actualiza allowedOrigins() en CorsConfig
-```
-
-**❌ PostgreSQL Connection Refused**
-```bash
-# Verifica contenedor
-docker ps | grep loadroute-postgres
-# Si no aparece: docker-compose up -d
-# Ver logs: docker logs loadroute-postgres
-```
-
-**❌ Canvas vacío/sin dibujo**
-- Abre DevTools (F12) → Console
-- Busca errores de JavaScript
-- Verifica que Backend retorna `vuelos: [ ... ]` con datos
-- Verifica que latitud/longitud son números válidos
-
-## 📚 Recursos Útiles
-
-- [Spring Boot Documentación](https://spring.io/projects/spring-boot)
-- [Next.js 14 Documentación](https://nextjs.org/docs)
-- [Tailwind CSS](https://tailwindcss.com/docs)
-- [PostgreSQL Documentación](https://www.postgresql.org/docs/)
-- [Canvas API](https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API)
-
-## 📞 Contacto y Soporte
-
-Para dudas sobre:
-- **Backend**: Ver [LoadRoute-Backend/README.md](LoadRoute-Backend/README.md)
-- **Frontend**: Ver [LoadRoute-Frontend/README.md](LoadRoute-Frontend/README.md)
-
-## 📄 Licencia
-
-Proyecto de código abierto. Usa libremente.
+## 📄 Formato de Datos
+El sistema consume datos a través de archivos `.txt`:
+1. **Aeropuertos**: Coordenadas, zona horaria (GMT) y capacidad de almacén.
+2. **Planes de Vuelo**: Rutas diarias con horarios locales y capacidad de carga.
+3. **Envíos**: Pedidos masivos con origen, destino y cantidad de maletas.
 
 ---
-
-**Versión:** 0.1.0  
-**Última actualización:** 2024-04-15  
-**Estado:** ✅ PoC Funcional - Listo para expansión
+**Desarrollado como PoC de Alta Performance para Logística Internacional.**

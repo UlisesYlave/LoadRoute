@@ -179,6 +179,52 @@ public class SolucionEstado {
         return null;
     }
 
+    // ── Mutación de la solución ───────────────────────────────────────────────
+
+    public void asignarRuta(String idEnvio, List<Vuelo> ruta) {
+        asignaciones.put(idEnvio, new ArrayList<>(ruta));
+    }
+
+    public List<Vuelo> getRuta(String idEnvio) {
+        return asignaciones.getOrDefault(idEnvio, Collections.emptyList());
+    }
+
+    public void removerRuta(String idEnvio) {
+        asignaciones.put(idEnvio, new ArrayList<>());
+    }
+
+    public List<String> getEnviosSinRuta() {
+        List<String> huerfanos = new ArrayList<>();
+        for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
+            if (e.getValue().isEmpty()) huerfanos.add(e.getKey());
+        }
+        return huerfanos;
+    }
+
+    public String seleccionarEnvioAleatorio(Random rng) {
+        List<String> conRuta = new ArrayList<>();
+        for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
+            if (!e.getValue().isEmpty()) conRuta.add(e.getKey());
+        }
+        if (conRuta.isEmpty()) return null;
+        return conRuta.get(rng.nextInt(conRuta.size()));
+    }
+
+    // ── Clonado ───────────────────────────────────────────────────────────────
+
+    public SolucionEstado clonar() {
+        return new SolucionEstado(envios, asignaciones);
+    }
+
+    // ── Accesores ─────────────────────────────────────────────────────────────
+
+    public Map<String, List<Vuelo>> getAsignaciones() { return Collections.unmodifiableMap(asignaciones); }
+    public Map<String, Envio>       getEnvios()        { return Collections.unmodifiableMap(envios); }
+    public int                      getTotalEnvios()   { return envios.size(); }
+    public int                      getEnviosAsignados() {
+        return (int) asignaciones.values().stream().filter(r -> !r.isEmpty()).count();
+    }
+
     @Override
     public String toString() {
         return String.format("SolucionEstado{envios=%d, asignados=%d, costo=%.2f}",

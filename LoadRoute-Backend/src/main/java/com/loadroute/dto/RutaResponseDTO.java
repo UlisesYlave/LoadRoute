@@ -63,24 +63,6 @@ public class RutaResponseDTO {
     public String getFechaFin() { return fechaFin; }
     public void setFechaFin(String fechaFin) { this.fechaFin = fechaFin; }
 
-    public int getEscenario() { return escenario; }
-    public void setEscenario(int escenario) { this.escenario = escenario; }
-
-    public ResultadoAlgoritmo getResultadoSA() { return resultadoSA; }
-    public void setResultadoSA(ResultadoAlgoritmo resultadoSA) { this.resultadoSA = resultadoSA; }
-
-    public ResultadoAlgoritmo getResultadoALNS() { return resultadoALNS; }
-    public void setResultadoALNS(ResultadoAlgoritmo resultadoALNS) { this.resultadoALNS = resultadoALNS; }
-
-    public List<AeropuertoDTO> getAeropuertos() { return aeropuertos; }
-    public void setAeropuertos(List<AeropuertoDTO> aeropuertos) { this.aeropuertos = aeropuertos; }
-
-    public int getTotalVuelos() { return totalVuelos; }
-    public void setTotalVuelos(int totalVuelos) { this.totalVuelos = totalVuelos; }
-
-    public int getTotalEnviosCargados() { return totalEnviosCargados; }
-    public void setTotalEnviosCargados(int totalEnviosCargados) { this.totalEnviosCargados = totalEnviosCargados; }
-
     // ── DTOs internos ─────────────────────────────────────────────────────
 
     public static class ResultadoAlgoritmo {
