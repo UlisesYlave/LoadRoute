@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: loadroute-backend
+
+  # No JPA needed - algorithms run in-memory
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+  # File upload configuration
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 1000MB
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: INFO
+    com.loadroute: DEBUG

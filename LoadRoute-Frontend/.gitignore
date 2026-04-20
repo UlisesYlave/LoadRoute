@@ -1,0 +1,31 @@
+# Dependencias
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+bun.lockb
+
+# Next.js
+.next/
+out/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env.local
+.env.*.local
+
+# Build
+build/
+coverage/
+
+# OS
+Thumbs.db
+.DS_Store
