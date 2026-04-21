@@ -1,4 +1,7 @@
 # 🏢 LoadRoute - Optimización Logística Global
+<div align="center">
+<img height="150" alt="logo" src="https://github.com/user-attachments/assets/f29acc42-bdab-42aa-bb28-7758760c4f06" />
+</div>
 
 Sistema avanzado de planificación y ruteo basado en metaheurísticas para la optimización de transporte de carga aérea.
 
