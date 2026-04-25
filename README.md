@@ -1,4 +1,7 @@
 # 🏢 LoadRoute - Optimización Logística Global
+<div align="center">
+<img height="150" alt="logo" src="https://github.com/user-attachments/assets/f29acc42-bdab-42aa-bb28-7758760c4f06" />
+</div>
 
 Sistema avanzado de planificación y ruteo basado en metaheurísticas para la optimización de transporte de carga aérea.
 
@@ -22,6 +25,8 @@ LoadRoute es una plataforma diseñada para resolver el problema de ruteo de env�
 - **Tailwind CSS**: Estilizado moderno con estética premium.
 - **Leaflet & React-Leaflet**: Visualización geoespacial de rutas y flotas en tiempo real.
 - **Lucide Icons**: Iconografía profesional.
+
+<img width="1919" height="1012" alt="Captura de pantalla 2026-04-20 175632" src="https://github.com/user-attachments/assets/987df4e7-b97a-4d11-83fa-47a4e4a4101a" />
 
 ## 🧠 Características del Algoritmo
 El motor de ruteo actual implementa reglas de negocio avanzadas:
