@@ -26,7 +26,7 @@ LoadRoute es una plataforma diseñada para resolver el problema de ruteo de env�
 - **Leaflet & React-Leaflet**: Visualización geoespacial de rutas y flotas en tiempo real.
 - **Lucide Icons**: Iconografía profesional.
 
-<img width="1919" height="1012" alt="Captura de pantalla 2026-04-20 175632" src="https://github.com/user-attachments/assets/987df4e7-b97a-4d11-83fa-47a4e4a4101a" />
+<img width="1600" height="830" alt="image" src="https://github.com/user-attachments/assets/dfb6e6af-3631-464d-a2ac-301eb03a3c98" />
 
 ## 🧠 Características del Algoritmo
 El motor de ruteo actual implementa reglas de negocio avanzadas:
