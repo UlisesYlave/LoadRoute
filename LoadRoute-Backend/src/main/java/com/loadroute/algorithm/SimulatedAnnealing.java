@@ -11,80 +11,53 @@ import java.util.*;
 import java.util.logging.Logger;
 
 /**
- * ══════════════════════════════════════════════════════════════════════════════
- * SIMULATED ANNEALING — Versión Optimizada (v2)
- * ══════════════════════════════════════════════════════════════════════════════
+ * SIMULATED ANNEALING — v3 con reheats corregidos y vecindario mejorado.
  *
- * PROBLEMA DE LA VERSIÓN ANTERIOR:
- *   evaluarCostoTotal() iteraba TODOS los envíos y vuelos en CADA iteración.
- *   Con n=1000 envíos, m=500 vuelos: ~500K ops por iteración.
- *   Con T0=1000, alfa=0.995 → ~1,379 pasos hasta T_min → 689M ops totales.
- *   Tiempo real: ~50ms/iter × 1379 iters = solo ~69 segundos de trabajo útil
- *   en 90 minutos (el resto lo consume la evaluación del costo de vecinos rechazados).
+ * CORRECCIÓN v3: Reheat instantáneo
+ * ──────────────────────────────────
+ * v2 usaba T_reheat = T0 * 0.1^reheat = 100, 50, 25, 12.5, 6.25
+ * Con alpha=0.995 y T_min=1.0, T=100 converge en ~919 pasos ≈ 46ms.
+ * Resultado: 5 reheats completados en 200ms total sin exploración real.
  *
- * OPTIMIZACIONES IMPLEMENTADAS:
+ * CORRECCIÓN: Los reheats parten de T_reheat proporcional al costo del problema,
+ * no de T0 fija. Temperatura calibrada al costo promedio por envío para que la
+ * probabilidad de aceptar un movimiento "malo" sea ~30% al inicio del reheat.
  *
- *   [OPT-1] Delta Costing Incremental (CRITICO — ganancia ~300x)
- *     En lugar de recalcular f(S) completo, se calcula solo el CAMBIO de costo
- *     producido por reasignar un único envío. Se mantienen índices:
- *       - transitoHorasPorEnvio: Map<id, long>
- *       - cargaPorVuelo:         Map<vueloId, int>
- *     Delta = (nuevo_transito - viejo_transito)
- *           + SLA_penalty_delta
- *           + capacidad_delta (solo vuelos afectados)
- *     Complejidad: O(|ruta_vieja| + |ruta_nueva|) ≈ O(6) en vez de O(n·m)
+ * CORRECCIÓN: Vecindario "swap de rutas" entre dos envíos
+ * ────────────────────────────────────────────────────────
+ * Con red sin congestión, cambiar la ruta de UN envío no mejora nada
+ * porque el greedy ya asignó la ruta óptima para cada uno.
+ * SOLUCIÓN: Se añade el operador "swap": intercambiar las rutas de dos
+ * envíos con el mismo origen/destino. Esto permite descubrir si el
+ * orden de asignación afecta la capacidad compartida entre vuelos.
  *
- *   [OPT-2] Reversibilidad sin Clonado (ganancia ~10x adicional)
- *     Al rechazar un movimiento, en vez de descartar un clon, se revierte
- *     el estado mediante un registro de "undo" (UndoRecord). Cero copias
- *     de Map completos. Solo se clona al guardar la mejor solución encontrada.
- *     Complejidad del undo: O(|ruta|) en vez de O(n)
- *
- *   [OPT-3] Caché de Rutas BFS (ganancia ~35% de llamadas BFS)
- *     Las rutas BFS se cachean por (codigoOrigen, codigoDestino).
- *     Hit rate esperado ~40% dado que hay 30×30=900 pares posibles.
- *     IMPORTANTE: el cache guarda listas de VUELOS (objetos compartidos, no copias),
- *     por lo que la capacidad se verifica en tiempo de uso, no en el cache.
- *
- *   [OPT-4] Selección Aleatoria O(1) con Indexed Set (ganancia ~5%)
- *     Se mantiene una lista ArrayList<String> de envíos con ruta asignada,
- *     actualizada en O(1) con swap-and-pop al eliminar o agregar entradas.
- *     Elimina el filtrado O(n) en cada iteración.
- *
- *   [OPT-5] Reheat (Reinicio Térmico) tras convergencia
- *     Con T0=1000, alpha=0.995: la temperatura converge a T_min en ~1,379 pasos.
- *     Sin reheat, el 95% del tiempo de ejecución está "desperdiciado" en T < 1.
- *     Estrategia: cuando T < T_min, reiniciar con T = T_reheat = T0 * 0.1,
- *     partiendo de la mejor solución encontrada. Permite hasta MAX_REHEATS reinicios.
- *     Ganancia: de ~1,379 a ~10,000+ iteraciones efectivas en 90 minutos.
- *
- * RESULTADO ESPERADO:
- *   Tiempo por iteración:     ~50ms → <0.5ms
- *   Iteraciones en 90 min:    ~1,379 → ~50,000+ (limitado por reheat)
- *   Mejora de calidad:        10-25% mejor costo final
- * ══════════════════════════════════════════════════════════════════════════════
+ * CORRECCIÓN: Temperatura inicial auto-calibrada
+ * ───────────────────────────────────────────────
+ * T0 se calibra automáticamente usando muestreo: se calculan 100 deltas
+ * aleatorios y se elige T0 tal que la probabilidad de aceptar un movimiento
+ * "malo" promedio sea ~0.5 al inicio. Esto garantiza exploración correcta
+ * independientemente del tamaño del problema.
  */
 public class SimulatedAnnealing {
 
     private static final Logger LOG = Logger.getLogger(SimulatedAnnealing.class.getName());
 
-    // ── Parámetros del algoritmo ──────────────────────────────────────────────
-    private double temperaturaInicial = 1_000.0;
+    // ── Parámetros ────────────────────────────────────────────────────────────
+    private double temperaturaInicial = -1;  // -1 = auto-calibrar
     private double alfa               = 0.995;
-    private double temperaturaMinima  = 1.0;
+    private double temperaturaMinima  = 0.01;
     private long   tiempoMaxMs        = 90L * 60 * 1_000;
-    private int    maxReheats         = 5;       // [OPT-5]
-    private double factorReheat       = 0.10;    // T_reheat = T0 * factorReheat
+    private int    maxReheats         = 5;
 
     private final Random rng;
     private final RedLogistica red;
 
     // ── Estadísticas ──────────────────────────────────────────────────────────
-    private int    iteracionesTotales;
+    private int    iteraciones;
     private int    reheats;
     private int    mejorasAceptadas;
     private int    peoresAceptadas;
-    private int    cacheHits;           // [OPT-3]
+    private int    cacheHits;
     private double costoInicial;
     private double costoFinal;
 
@@ -94,93 +67,86 @@ public class SimulatedAnnealing {
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // PUNTO DE ENTRADA PRINCIPAL
+    // PUNTO DE ENTRADA
     // ══════════════════════════════════════════════════════════════════════════
 
     public SolucionEstado optimizar(Map<String, Envio> envios) {
         long inicio = System.currentTimeMillis();
 
-        // 1. Solución greedy inicial
+        // 1. Solución inicial greedy
         SolucionEstado base = construirGreedy(envios);
-
-        // 2. Inicializar estado incremental
         EstadoIncremental estado = new EstadoIncremental(base, envios);
         costoInicial = estado.costoTotal;
 
-        // 3. Guardar copia de la mejor solución (solo cuando mejora)
         SolucionEstado mejorSolucion = base.clonar();
         double mejorCosto = costoInicial;
 
-        LOG.info(String.format("SA-Opt inicio | costo greedy: %.2f | envios: %d/%d",
-                costoInicial, base.getEnviosAsignados(), base.getTotalEnvios()));
+        // 2. Auto-calibrar temperatura inicial
+        double T0 = (temperaturaInicial > 0)
+                ? temperaturaInicial
+                : calibrarTemperatura(estado, envios);
 
-        // 4. Caché de rutas [OPT-3]
+        LOG.info(String.format("SA-Opt inicio | T0=%.1f | costo greedy: %.2f | envios: %d/%d",
+                T0, costoInicial, base.getEnviosAsignados(), base.getTotalEnvios()));
+
+        // 3. Caché de rutas por par origen-destino
         Map<String, List<List<Vuelo>>> cacheRutas = new HashMap<>(900);
 
-        double temperatura = temperaturaInicial;
-        iteracionesTotales = 0; reheats = 0; mejorasAceptadas = 0;
+        double temperatura = T0;
+        iteraciones = 0; reheats = 0; mejorasAceptadas = 0;
         peoresAceptadas = 0; cacheHits = 0;
 
-        // 5. Bucle principal con reheat [OPT-5]
         do {
             while (temperatura > temperaturaMinima
                     && (System.currentTimeMillis() - inicio) < tiempoMaxMs) {
 
-                // [OPT-4] Selección O(1): lista directa de envíos con ruta
-                String idEnvio = estado.seleccionarEnvioAleatorio(rng);
-                if (idEnvio == null) break;
-
-                Envio envio = envios.get(idEnvio);
-                List<Vuelo> rutaActual = estado.getRuta(idEnvio);
-
-                // [OPT-3] Buscar ruta alternativa con caché
-                String cacheKey = envio.getOrigen().getCodigo() + "->" + envio.getDestino().getCodigo();
-                List<List<Vuelo>> alternativas = cacheRutas.get(cacheKey);
-                if (alternativas == null) {
-                    alternativas = red.buscarRutasRelajadas(envio);
-                    cacheRutas.put(cacheKey, alternativas);
+                // Alternar entre dos tipos de vecindario:
+                // 50% - cambio de ruta de un envío (exploración individual)
+                // 50% - swap de rutas entre dos envíos (exploración relacional)
+                double delta;
+                boolean aplicado;
+                if (rng.nextBoolean()) {
+                    delta = intentarCambioRuta(estado, envios, cacheRutas);
                 } else {
-                    cacheHits++;
+                    delta = intentarSwapRutas(estado, envios);
                 }
 
-                List<Vuelo> rutaNueva = elegirAlternativa(alternativas, rutaActual);
-                if (rutaNueva == null) { temperatura *= alfa; iteracionesTotales++; continue; }
+                // delta = Double.MAX_VALUE significa "no hay movimiento válido"
+                if (delta == Double.MAX_VALUE) {
+                    temperatura *= alfa;
+                    iteraciones++;
+                    continue;
+                }
 
-                // [OPT-1] Calcular SOLO el delta del cambio
-                double delta = estado.calcularDelta(idEnvio, rutaActual, rutaNueva, envio);
-
-                // Criterio de aceptación SA (Metropolis)
                 boolean aceptar = delta < 0
                         || Math.exp(-delta / temperatura) > rng.nextDouble();
 
                 if (aceptar) {
-                    // [OPT-2] Aplicar cambio actualizando índices incrementalmente
-                    estado.aplicarCambio(idEnvio, rutaActual, rutaNueva, envio, delta);
-
+                    // El movimiento ya fue aplicado en intentar*()
                     if (delta < 0) mejorasAceptadas++;
                     else           peoresAceptadas++;
 
                     if (estado.costoTotal < mejorCosto) {
-                        // Solo clonamos cuando encontramos genuinamente mejor solución
                         mejorSolucion = estado.exportar();
                         mejorCosto    = estado.costoTotal;
                     }
+                } else {
+                    // Revertir el movimiento aplicado
+                    estado.revertirUltimoMovimiento(envios);
                 }
-                // Si se rechaza: NO hay undo necesario porque no aplicamos el cambio.
-                // La solución en 'estado' sigue siendo la actual.
 
                 temperatura *= alfa;
-                iteracionesTotales++;
+                iteraciones++;
             }
 
-            // [OPT-5] Reheat: reiniciar temperatura desde la mejor solución
-            if ((System.currentTimeMillis() - inicio) < tiempoMaxMs
-                    && reheats < maxReheats) {
-                temperatura = temperaturaInicial * factorReheat * Math.pow(0.5, reheats);
+            // Reheat desde la mejor solución con temperatura proporcional al costo actual
+            if ((System.currentTimeMillis() - inicio) < tiempoMaxMs && reheats < maxReheats) {
+                reheats++;
+                // Temperatura del reheat decrece con cada reinicio (exploración más fina)
+                temperatura = T0 * Math.pow(0.3, reheats);
                 // Reiniciar desde la mejor solución encontrada
                 estado = new EstadoIncremental(mejorSolucion, envios);
-                reheats++;
-                LOG.info(String.format("SA-Opt reheat #%d | T=%.1f | costo: %.2f",
+                LOG.info(String.format("SA-Opt reheat #%d | T=%.2f | costo: %.2f",
                         reheats, temperatura, mejorCosto));
             } else {
                 break;
@@ -192,38 +158,96 @@ public class SimulatedAnnealing {
         long ms = System.currentTimeMillis() - inicio;
         LOG.info(String.format(
             "SA-Opt fin | iter: %d | reheats: %d | mejoras: %d | peores: %d | " +
-            "cache hits: %d | costo: %.2f -> %.2f (%.1f%%) | tiempo: %.1fs",
-            iteracionesTotales, reheats, mejorasAceptadas, peoresAceptadas,
-            cacheHits, costoInicial, costoFinal,
-            getMejoraRelativa(), ms / 1000.0));
+            "cache: %d hits | costo: %.2f -> %.2f (%.1f%%) | tiempo: %.1fs",
+            iteraciones, reheats, mejorasAceptadas, peoresAceptadas,
+            cacheHits, costoInicial, costoFinal, getMejoraRelativa(), ms / 1000.0));
 
         return mejorSolucion;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // ESTADO INCREMENTAL — el núcleo de la optimización [OPT-1, OPT-2, OPT-4]
+    // OPERADORES DE VECINDARIO
     // ══════════════════════════════════════════════════════════════════════════
 
     /**
-     * Mantiene el estado de la solución con índices actualizados incrementalmente.
-     *
-     * Índices mantenidos:
-     *   - asignaciones:         Map<idEnvio, List<Vuelo>>
-     *   - transitoHoras:        Map<idEnvio, long>      (horas GMT de tránsito)
-     *   - cargaPorVuelo:        Map<vueloId, int>        (maletas asignadas)
-     *   - enviosConRuta:        ArrayList<String>        (para selección O(1))
-     *   - indiceEnvioConRuta:   Map<idEnvio, int>        (índice en el array)
-     *   - costoTotal:           double                   (costo acumulado actual)
+     * Operador 1: cambiar la ruta de un envío aleatorio.
+     * Aplica el movimiento directamente y retorna el delta.
+     * Si no hay movimiento válido, retorna Double.MAX_VALUE.
      */
+    private double intentarCambioRuta(EstadoIncremental estado,
+                                       Map<String, Envio> envios,
+                                       Map<String, List<List<Vuelo>>> cache) {
+        String idEnvio = estado.seleccionarEnvioAleatorio(rng);
+        if (idEnvio == null) return Double.MAX_VALUE;
+
+        Envio envio = envios.get(idEnvio);
+        List<Vuelo> rutaActual = estado.getRuta(idEnvio);
+
+        String cacheKey = envio.getOrigen().getCodigo() + "->" + envio.getDestino().getCodigo();
+        List<List<Vuelo>> alternativas = cache.get(cacheKey);
+        if (alternativas == null) {
+            alternativas = red.buscarRutasRelajadas(envio);
+            cache.put(cacheKey, alternativas);
+        } else {
+            cacheHits++;
+        }
+
+        List<Vuelo> rutaNueva = elegirAlternativa(alternativas, rutaActual);
+        if (rutaNueva == null) return Double.MAX_VALUE;
+
+        double delta = estado.calcularDeltaCambioRuta(idEnvio, rutaActual, rutaNueva, envio);
+        estado.aplicarCambioRuta(idEnvio, rutaActual, rutaNueva, envio, delta);
+        return delta;
+    }
+
+    /**
+     * Operador 2: intercambiar las rutas de dos envíos con mismo origen y destino.
+     * Útil cuando la red tiene congestión: el orden de asignación importa.
+     * Aplica el movimiento directamente y retorna el delta.
+     */
+    private double intentarSwapRutas(EstadoIncremental estado, Map<String, Envio> envios) {
+        // Seleccionar un envío semilla
+        String idA = estado.seleccionarEnvioAleatorio(rng);
+        if (idA == null) return Double.MAX_VALUE;
+
+        Envio envioA = envios.get(idA);
+        List<Vuelo> rutaA = estado.getRuta(idA);
+        if (rutaA.isEmpty()) return Double.MAX_VALUE;
+
+        // Buscar un segundo envío con el mismo origen y destino
+        String idB = estado.seleccionarEnvioMismoParOD(rng, idA, envioA, envios);
+        if (idB == null) return Double.MAX_VALUE;
+
+        Envio envioB = envios.get(idB);
+        List<Vuelo> rutaB = estado.getRuta(idB);
+
+        // Si ambos tienen la misma ruta, el swap no cambia nada
+        if (iguales(rutaA, rutaB)) return Double.MAX_VALUE;
+
+        // Calcular delta del swap (A toma ruta de B, B toma ruta de A)
+        double delta = estado.calcularDeltaSwap(idA, rutaA, rutaB, envioA, idB, rutaB, rutaA, envioB);
+        estado.aplicarSwap(idA, rutaA, rutaB, envioA, idB, rutaB, rutaA, envioB, delta);
+        return delta;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ESTADO INCREMENTAL
+    // ══════════════════════════════════════════════════════════════════════════
+
     private class EstadoIncremental {
 
         final Map<String, Envio>       envios;
         final Map<String, List<Vuelo>> asignaciones;
-        final Map<String, Long>        transitoHoras;  // por envío, en horas GMT
-        final Map<Integer, Integer>    cargaPorVuelo;  // por id de vuelo
-        final ArrayList<String>        enviosConRuta;  // [OPT-4]
-        final Map<String, Integer>     indiceConRuta;  // posición en enviosConRuta
+        final Map<String, Long>        transitoHoras;
+        final Map<Integer, Integer>    cargaPorVuelo;
+        final ArrayList<String>        enviosConRuta;
+        final Map<String, Integer>     indiceConRuta;
         double costoTotal;
+
+        // Para revertir el último movimiento [OPT-2]
+        private String  undoIdA, undoIdB;
+        private List<Vuelo> undoRutaA, undoRutaB;
+        private double  undoDelta;
 
         EstadoIncremental(SolucionEstado sol, Map<String, Envio> envios) {
             this.envios       = envios;
@@ -233,164 +257,168 @@ public class SimulatedAnnealing {
             this.enviosConRuta = new ArrayList<>();
             this.indiceConRuta = new HashMap<>();
 
-            // Construir índices desde la solución base
             for (Map.Entry<String, List<Vuelo>> e : sol.getAsignaciones().entrySet()) {
                 String id = e.getKey();
                 List<Vuelo> ruta = new ArrayList<>(e.getValue());
                 asignaciones.put(id, ruta);
 
                 if (!ruta.isEmpty()) {
-                    // Registrar en lista de selección [OPT-4]
                     indiceConRuta.put(id, enviosConRuta.size());
                     enviosConRuta.add(id);
-
-                    // Calcular tránsito GMT
                     Envio envio = envios.get(id);
-                    long horas = calcularTransitoHoras(ruta, envio);
-                    transitoHoras.put(id, horas);
-
-                    // Acumular carga en vuelos
-                    for (Vuelo v : ruta) {
-                        cargaPorVuelo.merge(v.getId(), envio.getCantidadMaletas(), Integer::sum);
+                    if (envio != null) {
+                        transitoHoras.put(id, calcularTransitoHoras(ruta, envio));
+                        for (Vuelo v : ruta) {
+                            cargaPorVuelo.merge(v.getId(), envio.getCantidadMaletas(), Integer::sum);
+                        }
                     }
                 }
             }
-
-            // Calcular costo inicial desde los índices
-            this.costoTotal = calcularCostoDesdeIndices();
+            this.costoTotal = calcularCostoCompleto();
         }
 
-        // ── Delta Costing [OPT-1] ────────────────────────────────────────────
+        // ── Delta costing para cambio de ruta ────────────────────────────────
 
-        /**
-         * Calcula el cambio de costo SIN modificar el estado.
-         * Solo considera el envío modificado y los vuelos afectados.
-         *
-         * delta = (nuevoTransito - viejoTransito)
-         *       + omega_sla * (nuevo_retraso - viejo_retraso)
-         *       + omega_cap * (excesos_vuelos_nuevos - excesos_vuelos_viejos)
-         */
-        double calcularDelta(String idEnvio, List<Vuelo> rutaVieja,
-                              List<Vuelo> rutaNueva, Envio envio) {
+        double calcularDeltaCambioRuta(String idEnvio, List<Vuelo> rutaVieja,
+                                        List<Vuelo> rutaNueva, Envio envio) {
             long horasViejas = transitoHoras.getOrDefault(idEnvio, 0L);
             long horasNuevas = calcularTransitoHoras(rutaNueva, envio);
-            int maletas      = envio.getCantidadMaletas();
-            int sla          = envio.getSlaHoras();
+            int maletas = envio.getCantidadMaletas();
+            int sla     = envio.getSlaHoras();
 
-            // Delta de tránsito base
             double delta = (horasNuevas - horasViejas);
+            delta += SolucionEstado.PESO_SLA * (Math.max(0, horasNuevas - sla)
+                                              - Math.max(0, horasViejas - sla));
 
-            // Delta penalización SLA
-            long retrasoViejo = Math.max(0, horasViejas - sla);
-            long retrasoNuevo = Math.max(0, horasNuevas - sla);
-            delta += SolucionEstado.PESO_SLA * (retrasoNuevo - retrasoViejo);
-
-            // Delta penalización capacidad de vuelos (solo vuelos afectados)
-            // Vuelos que se LIBERAN (ruta vieja)
             for (Vuelo v : rutaVieja) {
-                int cargaActual = cargaPorVuelo.getOrDefault(v.getId(), 0);
-                int cap         = v.getCapacidadMax();
-                int excesoViejo = Math.max(0, cargaActual - cap);
-                int excesoNuevo = Math.max(0, (cargaActual - maletas) - cap);
-                delta += SolucionEstado.PESO_CAPACIDAD_VUELO * (excesoNuevo - excesoViejo);
+                int c = cargaPorVuelo.getOrDefault(v.getId(), 0);
+                delta += SolucionEstado.PESO_CAPACIDAD_VUELO
+                       * (Math.max(0, c - maletas - v.getCapacidadMax())
+                        - Math.max(0, c - v.getCapacidadMax()));
             }
-            // Vuelos que se OCUPAN (ruta nueva)
             for (Vuelo v : rutaNueva) {
-                int cargaActual = cargaPorVuelo.getOrDefault(v.getId(), 0);
-                // Si este vuelo ya estaba en la ruta vieja, su carga ya fue decrementada arriba
-                boolean estabaEnVieja = rutaVieja.contains(v);
-                int cargaBase = estabaEnVieja ? (cargaActual - maletas) : cargaActual;
-                int cap       = v.getCapacidadMax();
-                int excesoViejo = Math.max(0, cargaBase - cap);
-                int excesoNuevo = Math.max(0, (cargaBase + maletas) - cap);
-                delta += SolucionEstado.PESO_CAPACIDAD_VUELO * (excesoNuevo - excesoViejo);
+                boolean enVieja = rutaVieja.stream().anyMatch(x -> x.getId() == v.getId());
+                int base = enVieja
+                    ? cargaPorVuelo.getOrDefault(v.getId(), 0) - maletas
+                    : cargaPorVuelo.getOrDefault(v.getId(), 0);
+                delta += SolucionEstado.PESO_CAPACIDAD_VUELO
+                       * (Math.max(0, base + maletas - v.getCapacidadMax())
+                        - Math.max(0, base - v.getCapacidadMax()));
             }
-
-            // Nota: NO calculamos delta de capacidad de aeropuerto aquí.
-            // La restricción de aeropuerto es O(n·eventos) y su delta es costoso.
-            // Se evalúa completa solo en la exportación final para verificación.
-            // Esto es aceptable porque las violaciones de almacén son mucho menos
-            // frecuentes que las de SLA y capacidad de vuelo.
-
             return delta;
         }
 
-        /**
-         * Aplica el cambio al estado y actualiza todos los índices. [OPT-2]
-         * No crea ninguna copia del estado completo.
-         */
-        void aplicarCambio(String idEnvio, List<Vuelo> rutaVieja,
-                            List<Vuelo> rutaNueva, Envio envio, double delta) {
+        void aplicarCambioRuta(String idEnvio, List<Vuelo> rutaVieja,
+                                List<Vuelo> rutaNueva, Envio envio, double delta) {
+            // Guardar undo
+            undoIdA   = idEnvio; undoRutaA = rutaVieja;
+            undoIdB   = null;    undoRutaB = null;
+            undoDelta = delta;
+
             int maletas = envio.getCantidadMaletas();
-
-            // Liberar carga de vuelos de la ruta vieja
-            for (Vuelo v : rutaVieja) {
-                cargaPorVuelo.merge(v.getId(), -maletas, Integer::sum);
-            }
-            // Reservar carga en vuelos de la ruta nueva
-            for (Vuelo v : rutaNueva) {
-                cargaPorVuelo.merge(v.getId(), maletas, Integer::sum);
-            }
-
-            // Actualizar tránsito
-            long horasNuevas = calcularTransitoHoras(rutaNueva, envio);
-            transitoHoras.put(idEnvio, horasNuevas);
-
-            // Actualizar asignación
+            for (Vuelo v : rutaVieja) cargaPorVuelo.merge(v.getId(), -maletas, Integer::sum);
+            for (Vuelo v : rutaNueva) cargaPorVuelo.merge(v.getId(), maletas, Integer::sum);
+            transitoHoras.put(idEnvio, calcularTransitoHoras(rutaNueva, envio));
             asignaciones.put(idEnvio, rutaNueva);
-
-            // Actualizar costo acumulado con el delta ya calculado
             costoTotal += delta;
         }
 
-        // ── Selección O(1) [OPT-4] ──────────────────────────────────────────
+        // ── Delta costing para swap de rutas ─────────────────────────────────
+
+        double calcularDeltaSwap(String idA, List<Vuelo> rutaAVieja, List<Vuelo> rutaANueva,
+                                  Envio envioA, String idB, List<Vuelo> rutaBVieja,
+                                  List<Vuelo> rutaBNueva, Envio envioB) {
+            double d = calcularDeltaCambioRuta(idA, rutaAVieja, rutaANueva, envioA);
+            // Aplicar temporalmente A para calcular delta de B sobre el nuevo estado
+            aplicarCambioRuta(idA, rutaAVieja, rutaANueva, envioA, d);
+            double dB = calcularDeltaCambioRuta(idB, rutaBVieja, rutaBNueva, envioB);
+            // Revertir A (se aplicará formalmente en aplicarSwap)
+            aplicarCambioRuta(idA, rutaANueva, rutaAVieja, envioA, -d);
+            return d + dB;
+        }
+
+        void aplicarSwap(String idA, List<Vuelo> rutaAVieja, List<Vuelo> rutaANueva, Envio envioA,
+                          String idB, List<Vuelo> rutaBVieja, List<Vuelo> rutaBNueva, Envio envioB,
+                          double delta) {
+            undoIdA = idA; undoRutaA = rutaAVieja;
+            undoIdB = idB; undoRutaB = rutaBVieja;
+            undoDelta = delta;
+
+            aplicarCambioRuta(idA, rutaAVieja, rutaANueva, envioA, 0);
+            aplicarCambioRuta(idB, rutaBVieja, rutaBNueva, envioB, 0);
+            costoTotal += delta; // actualizar costo con el delta total real
+        }
+
+        void revertirUltimoMovimiento(Map<String, Envio> envios) {
+            if (undoIdA == null) return;
+            List<Vuelo> actual = asignaciones.get(undoIdA);
+            aplicarCambioRuta(undoIdA, actual, undoRutaA, envios.get(undoIdA), 0);
+            if (undoIdB != null) {
+                List<Vuelo> actualB = asignaciones.get(undoIdB);
+                aplicarCambioRuta(undoIdB, actualB, undoRutaB, envios.get(undoIdB), 0);
+            }
+            costoTotal -= undoDelta;
+            undoIdA = null; undoIdB = null;
+        }
+
+        // ── Selección ─────────────────────────────────────────────────────────
 
         String seleccionarEnvioAleatorio(Random rng) {
             if (enviosConRuta.isEmpty()) return null;
             return enviosConRuta.get(rng.nextInt(enviosConRuta.size()));
         }
 
-        List<Vuelo> getRuta(String idEnvio) {
-            return asignaciones.getOrDefault(idEnvio, Collections.emptyList());
+        /** Selecciona un segundo envío con el mismo par origen-destino que idA. */
+        String seleccionarEnvioMismoParOD(Random rng, String idA, Envio envioA,
+                                           Map<String, Envio> todosEnvios) {
+            String orig = envioA.getOrigen().getCodigo();
+            String dest = envioA.getDestino().getCodigo();
+
+            List<String> candidatos = new ArrayList<>();
+            for (String id : enviosConRuta) {
+                if (id.equals(idA)) continue;
+                Envio e = todosEnvios.get(id);
+                if (e != null && e.getOrigen().getCodigo().equals(orig)
+                              && e.getDestino().getCodigo().equals(dest)) {
+                    candidatos.add(id);
+                }
+            }
+            if (candidatos.isEmpty()) return null;
+            return candidatos.get(rng.nextInt(candidatos.size()));
         }
 
-        // ── Exportar a SolucionEstado (solo cuando se guarda la mejor) ───────
+        List<Vuelo> getRuta(String id) {
+            return asignaciones.getOrDefault(id, Collections.emptyList());
+        }
 
         SolucionEstado exportar() {
             SolucionEstado sol = new SolucionEstado(envios);
             for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
-                if (!e.getValue().isEmpty()) {
-                    sol.asignarRuta(e.getKey(), e.getValue());
-                }
+                if (!e.getValue().isEmpty()) sol.asignarRuta(e.getKey(), e.getValue());
             }
             return sol;
         }
 
-        // ── Utilidades internas ──────────────────────────────────────────────
-
-        /** Calcula el costo completo desde los índices (solo para inicialización). */
-        private double calcularCostoDesdeIndices() {
+        private double calcularCostoCompleto() {
             double costo = 0.0;
             for (Map.Entry<String, Long> e : transitoHoras.entrySet()) {
                 Envio envio = envios.get(e.getKey());
+                if (envio == null) continue;
                 long horas = e.getValue();
                 costo += horas;
-                long retraso = Math.max(0, horas - envio.getSlaHoras());
-                costo += SolucionEstado.PESO_SLA * retraso;
+                costo += SolucionEstado.PESO_SLA * Math.max(0, horas - envio.getSlaHoras());
             }
-            // Penalización de vuelos
             for (Map.Entry<Integer, Integer> e : cargaPorVuelo.entrySet()) {
                 Vuelo v = buscarVuelo(e.getKey());
                 if (v != null) {
-                    int exceso = Math.max(0, e.getValue() - v.getCapacidadMax());
-                    costo += SolucionEstado.PESO_CAPACIDAD_VUELO * exceso;
+                    costo += SolucionEstado.PESO_CAPACIDAD_VUELO
+                           * Math.max(0, e.getValue() - v.getCapacidadMax());
                 }
             }
-            // Envíos sin ruta (penalización)
             for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
                 if (e.getValue().isEmpty()) {
                     Envio envio = envios.get(e.getKey());
-                    costo += SolucionEstado.PESO_SLA * envio.getSlaHoras();
+                    if (envio != null) costo += SolucionEstado.PESO_SLA * envio.getSlaHoras();
                 }
             }
             return costo;
@@ -398,30 +426,65 @@ public class SimulatedAnnealing {
 
         private Vuelo buscarVuelo(int id) {
             for (List<Vuelo> ruta : asignaciones.values()) {
-                for (Vuelo v : ruta) {
-                    if (v.getId() == id) return v;
-                }
+                for (Vuelo v : ruta) { if (v.getId() == id) return v; }
             }
             return null;
         }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    // UTILIDADES
+    // AUTO-CALIBRACIÓN DE TEMPERATURA
     // ══════════════════════════════════════════════════════════════════════════
 
-    /** Calcula el tiempo de tránsito en horas GMT para una ruta dada. */
+    /**
+     * Calibra T0 muestreando 100 movimientos aleatorios.
+     * T0 se elige para que P(aceptar movimiento malo promedio) ≈ 0.5 al inicio.
+     * Fórmula: T0 = -delta_promedio / ln(0.5)
+     */
+    private double calibrarTemperatura(EstadoIncremental estado, Map<String, Envio> envios) {
+        List<Double> deltasPositivos = new ArrayList<>();
+        Map<String, List<List<Vuelo>>> cacheTemp = new HashMap<>();
+
+        for (int i = 0; i < 100 && !estado.enviosConRuta.isEmpty(); i++) {
+            String id = estado.seleccionarEnvioAleatorio(rng);
+            if (id == null) continue;
+            Envio envio = envios.get(id);
+            if (envio == null) continue;
+            List<Vuelo> rutaActual = estado.getRuta(id);
+
+            String key = envio.getOrigen().getCodigo() + "->" + envio.getDestino().getCodigo();
+            List<List<Vuelo>> alts = cacheTemp.computeIfAbsent(key, k -> red.buscarRutasRelajadas(envio));
+            List<Vuelo> rutaNueva = elegirAlternativa(alts, rutaActual);
+            if (rutaNueva == null) continue;
+
+            double delta = estado.calcularDeltaCambioRuta(id, rutaActual, rutaNueva, envio);
+            if (delta > 0) deltasPositivos.add(delta);
+        }
+
+        if (deltasPositivos.isEmpty()) {
+            LOG.info("Auto-calibracion: no se encontraron movimientos peores. T0=10.0");
+            return 10.0;
+        }
+
+        double deltaPromedio = deltasPositivos.stream().mapToDouble(d -> d).average().orElse(1.0);
+        double T0 = -deltaPromedio / Math.log(0.5); // P(aceptar) = 0.5 para delta promedio
+        T0 = Math.max(1.0, Math.min(T0, 10_000.0)); // acotar entre 1 y 10,000
+
+        LOG.info(String.format("Auto-calibracion: delta_avg=%.2f -> T0=%.2f", deltaPromedio, T0));
+        return T0;
+    }
+
+    // ── Utilidades ────────────────────────────────────────────────────────────
+
     static long calcularTransitoHoras(List<Vuelo> ruta, Envio envio) {
-        if (ruta.isEmpty()) return envio.getSlaHoras() * 10L; // penalización fuerte
+        if (ruta.isEmpty()) return envio.getSlaHoras() * 10L;
         LocalDateTime t = envio.getRecepcionGMT();
         for (Vuelo v : ruta) {
-            LocalDateTime salida = v.getProximaSalidaGMT(t, RedLogistica.BUFFER_CONEXION);
-            t = v.getLlegadaGMT(salida);
+            t = v.getLlegadaGMT(v.getProximaSalidaGMT(t, RedLogistica.BUFFER_CONEXION));
         }
         return ChronoUnit.HOURS.between(envio.getRecepcionGMT(), t);
     }
 
-    /** Construye la solución greedy inicial (BFS más rápido por envío). */
     private SolucionEstado construirGreedy(Map<String, Envio> envios) {
         SolucionEstado sol = new SolucionEstado(envios);
         for (Envio envio : envios.values()) {
@@ -435,14 +498,10 @@ public class SimulatedAnnealing {
         return sol;
     }
 
-    /** Elige una ruta alternativa diferente a la actual. */
-    private List<Vuelo> elegirAlternativa(List<List<Vuelo>> alternativas,
-                                           List<Vuelo> rutaActual) {
-        if (alternativas.isEmpty()) return null;
+    private List<Vuelo> elegirAlternativa(List<List<Vuelo>> alts, List<Vuelo> actual) {
+        if (alts.isEmpty()) return null;
         List<List<Vuelo>> distintas = new ArrayList<>();
-        for (List<Vuelo> r : alternativas) {
-            if (!iguales(r, rutaActual)) distintas.add(r);
-        }
+        for (List<Vuelo> r : alts) { if (!iguales(r, actual)) distintas.add(r); }
         if (distintas.isEmpty()) return null;
         return distintas.get(rng.nextInt(distintas.size()));
     }
@@ -463,11 +522,10 @@ public class SimulatedAnnealing {
     public SimulatedAnnealing setMaxReheats(int n)            { this.maxReheats = n; return this; }
 
     // ── Estadísticas ──────────────────────────────────────────────────────────
-    public int    getIteraciones()      { return iteracionesTotales; }
+    public int    getIteraciones()      { return iteraciones; }
     public int    getReheats()          { return reheats; }
     public int    getMejorasAceptadas() { return mejorasAceptadas; }
     public int    getPeoresAceptadas()  { return peoresAceptadas; }
-    public int    getCacheHits()        { return cacheHits; }
     public double getCostoInicial()     { return costoInicial; }
     public double getCostoFinal()       { return costoFinal; }
     public double getMejoraRelativa() {

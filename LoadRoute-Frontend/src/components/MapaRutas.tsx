@@ -18,21 +18,26 @@ interface MapaRutasProps {
   resultado: RutaResponse | null;
   simTiempoMinutos: number;
   onSelectVuelo: (vuelo: any) => void;
+  selectedVuelo?: any | null;  // tramo seleccionado — dibuja solo su polilínea
+  umbralVerde: number;
+  umbralAmbar: number;
 }
 
-// Colores fijos para aeropuerto por capacidad máxima
-function getCapacidadColor(cap: number): string {
-  if (cap >= 460) return '#10b981'; // verde
-  if (cap >= 420) return '#f59e0b'; // amber
-  return '#ef4444';                 // rojo
+// Semáforo dinámico de Aeropuertos (por % de ocupación real)
+function getAirportColor(cargaActual: number, capacidadMax: number, umbralVerde: number, umbralAmbar: number): string {
+  if (capacidadMax <= 0) return '#10b981';
+  const p = (cargaActual / capacidadMax) * 100;
+  if (p <= umbralVerde) return '#10b981';
+  if (p <= umbralAmbar) return '#f59e0b';
+  return '#ef4444';
 }
 
-// Semáforo dinámico de Aviones:
-function getPlaneColor(cargaActual: number, capacidadMax: number): string {
+// Semáforo dinámico de Aviones
+function getPlaneColor(cargaActual: number, capacidadMax: number, umbralVerde: number, umbralAmbar: number): string {
   const p = (cargaActual / Math.max(capacidadMax, 1)) * 100;
-  if (p <= 30) return '#10b981'; // 0-30% verde
-  if (p <= 70) return '#f59e0b'; // 31-70% amarillo
-  return '#ef4444';              // 71-100% rojo
+  if (p <= umbralVerde) return '#10b981';
+  if (p <= umbralAmbar) return '#f59e0b';
+  return '#ef4444';
 }
 
 // Componente para ajustar el mapa a los bounds
@@ -61,7 +66,7 @@ function crearIconoAvion(color: string, angle: number): L.DivIcon {
   });
 }
 
-export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }: MapaRutasProps) {
+export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, selectedVuelo, umbralVerde, umbralAmbar }: MapaRutasProps) {
   const aeropuertos = resultado?.aeropuertos || [];
   const resultadoSA = resultado?.resultadoSA;
   const resultadoALNS = resultado?.resultadoALNS;
@@ -88,6 +93,9 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }
       <MapContainer
         center={[20, 30]}
         zoom={3}
+        minZoom={2}
+        maxBounds={[[-90, -200], [90, 200]]}
+        maxBoundsViscosity={1.0}
         style={{ width: '100%', height: '100%', backgroundColor: '#aadaff' }}
         zoomControl={true}
       >
@@ -95,41 +103,30 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           attribution='&copy; CARTO'
           maxZoom={19}
+          noWrap={true}
         />
 
-        {/* Líneas de rutas SA */}
-        {uniqueTramosLineasSA.map((t, i) => (
+        {/* Polilínea solo para el vuelo seleccionado */}
+        {selectedVuelo && (
           <Polyline
-            key={`sa-line-${t.origen}-${t.destino}`}
-            positions={[[t.origenLat, t.origenLon], [t.destinoLat, t.destinoLon]]}
-            color="#ef4444"
-            weight={1.5}
-            opacity={0.3}
-            dashArray="4, 6"
+            positions={[[selectedVuelo.origenLat, selectedVuelo.origenLon], [selectedVuelo.destinoLat, selectedVuelo.destinoLon]]}
+            color="#60a5fa"
+            weight={3}
+            opacity={0.85}
+            dashArray="8, 5"
           />
-        ))}
-
-        {/* Líneas de rutas ALNS */}
-        {uniqueTramosLineasALNS.map((t, i) => (
-          <Polyline
-            key={`alns-line-${t.origen}-${t.destino}`}
-            positions={[[t.origenLat, t.origenLon], [t.destinoLat, t.destinoLon]]}
-            color="#10b981"
-            weight={1.5}
-            opacity={0.3}
-            dashArray="4, 6"
-          />
-        ))}
+        )}
 
         {/* Marcadores de aeropuertos */}
         {aeropuertos.map(a => {
           const cargaActual = getAirportCurrentLoad(a.codigo, resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [], simTiempoMinutos);
+          const pct = a.capacidadMax > 0 ? Math.round((cargaActual / a.capacidadMax) * 100) : 0;
           return (
             <CircleMarker
               key={a.codigo}
               center={[a.latitud, a.longitud]}
               radius={5}
-              fillColor={getCapacidadColor(a.capacidadMax)}
+              fillColor={getAirportColor(cargaActual, a.capacidadMax, umbralVerde, umbralAmbar)}
               fillOpacity={0.9}
               color="#fff"
               weight={1}
@@ -139,7 +136,7 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }
                 <div style={{ fontSize: '11px', lineHeight: 1.4 }}>
                   <strong>{a.codigo}</strong> — {a.ciudad}<br/>
                   {a.pais} | GMT{a.gmt >= 0 ? '+' : ''}{a.gmt}<br/>
-                  Carga Act: {cargaActual}/{a.capacidadMax}
+                  Carga: {cargaActual}/{a.capacidadMax} ({pct}%)
                 </div>
               </Tooltip>
             </CircleMarker>
@@ -153,7 +150,7 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }
           // Actually, instead of tramosSA, pass the full rutas array down to getVueloLoad.
           // Let's compute color properly:
           const carga = getVueloLoad(t.vueloId, resultadoSA?.rutasMuestra || []);
-          const cColor = getPlaneColor(carga, t.capacidad);
+          const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
           return (
             <Marker 
               key={`plane-sa-${t.vueloId}`} 
@@ -168,7 +165,7 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo }
         {activePlanesALNS.map((t) => {
           const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
           const carga = getVueloLoad(t.vueloId, resultadoALNS?.rutasMuestra || []);
-          const cColor = getPlaneColor(carga, t.capacidad);
+          const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
           return (
             <Marker 
               key={`plane-alns-${t.vueloId}`} 

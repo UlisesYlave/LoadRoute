@@ -1,6 +1,10 @@
 /**
  * Servicio de API — Tasf.B2B Logistics
  * Envía archivos .txt al backend y recibe resultados de algoritmos reales.
+ *
+ * CAMBIO v3: escenario, fechaInicio y fechaFin van como @RequestParam en la URL
+ * (no en el FormData), conforme al controlador Spring Boot.
+ * Los archivos van como @RequestPart con sus nombres correctos.
  */
 
 import { API_ENDPOINTS } from '@/config/constants';
@@ -13,17 +17,24 @@ export async function ejecutarSimulacion(
   aeropuertosFile: File,
   vuelosFile: File,
   enviosFiles: File[],
-  escenario: number
+  escenario: number,
+  fechaInicio?: string,  // formato YYYYMMDD, opcional
+  fechaFin?: string      // formato YYYYMMDD, opcional
 ): Promise<RutaResponse> {
   const formData = new FormData();
-  formData.append('aeropuertos', aeropuertosFile);
-  formData.append('vuelos', vuelosFile);
+  // Nombres de campo deben coincidir con @RequestPart del controlador
+  formData.append('aeropuertosFile', aeropuertosFile);
+  formData.append('vuelosFile', vuelosFile);
   enviosFiles.forEach(file => {
-    formData.append('envios', file);
+    formData.append('enviosFiles', file);
   });
-  formData.append('escenario', String(escenario));
 
-  const response = await fetch(API_ENDPOINTS.SIMULAR, {
+  // Los @RequestParam van en la URL, no en el body multipart
+  const params = new URLSearchParams({ escenario: String(escenario) });
+  if (fechaInicio) params.set('fechaInicio', fechaInicio);
+  if (fechaFin)    params.set('fechaFin', fechaFin);
+
+  const response = await fetch(`${API_ENDPOINTS.SIMULAR}?${params.toString()}`, {
     method: 'POST',
     body: formData,
   });

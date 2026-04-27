@@ -8,6 +8,7 @@ interface ControlPanelProps {
   onResultado: (resultado: RutaResponse) => void;
   onError: (error: string) => void;
   onCargando: (cargando: boolean) => void;
+  onFechaInicio?: (fecha: string) => void; // Notifica la fecha elegida al padre
 }
 
 interface FileState {
@@ -48,13 +49,20 @@ const FILE_CONFIGS = [
   { key: 'envios', label: 'Envíos', desc: '_envios_XXXX_.txt', icon: '📦', accept: '.txt' },
 ];
 
-export default function ControlPanel({ onResultado, onError, onCargando }: ControlPanelProps) {
+/** Convierte 'YYYY-MM-DD' (HTML date input) a 'YYYYMMDD' (backend) */
+function toBackendDate(htmlDate: string): string {
+  return htmlDate.replace(/-/g, '');
+}
+
+export default function ControlPanel({ onResultado, onError, onCargando, onFechaInicio }: ControlPanelProps) {
   const [archivos, setArchivos] = useState<Record<string, FileState>>({
     aeropuertos: { files: [], name: '' },
     vuelos: { files: [], name: '' },
     envios: { files: [], name: '' },
   });
   const [escenario, setEscenario] = useState(1);
+  const [fechaInicio, setFechaInicio] = useState('');
+  const [fechaFin, setFechaFin] = useState('');
   const [ejecutando, setEjecutando] = useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -65,34 +73,35 @@ export default function ControlPanel({ onResultado, onError, onCargando }: Contr
       return;
     }
     const filesArray = Array.from(fileList);
-    // Filtrar archivos de texto estrictamente para la carpeta de envíos
-    const textFiles = key === 'envios' 
-      ? filesArray.filter(f => /_envios_[A-Za-z]{4}_\.txt/i.test(f.name)) 
+    const textFiles = key === 'envios'
+      ? filesArray.filter(f => /_envios_[A-Za-z]{4}_\.txt/i.test(f.name))
       : filesArray;
     const name = textFiles.length > 1 ? `${textFiles.length} archivos cargados` : (textFiles[0]?.name || '');
-    setArchivos(prev => ({
-      ...prev,
-      [key]: { files: textFiles, name },
-    }));
+    setArchivos(prev => ({ ...prev, [key]: { files: textFiles, name } }));
   }, []);
 
-  const todosArchivosListos = archivos.aeropuertos.files.length > 0 && 
-                              archivos.vuelos.files.length > 0 && 
-                              archivos.envios.files.length > 0;
+  const handleFechaInicioChange = (val: string) => {
+    setFechaInicio(val);
+    if (onFechaInicio) onFechaInicio(val ? toBackendDate(val) : '');
+  };
+
+  const todosArchivosListos = archivos.aeropuertos.files.length > 0 &&
+    archivos.vuelos.files.length > 0 &&
+    archivos.envios.files.length > 0;
 
   const handleEjecutar = async () => {
     if (!todosArchivosListos) return;
-
     setEjecutando(true);
     onCargando(true);
     onError('');
-
     try {
       const resultado = await ejecutarSimulacion(
         archivos.aeropuertos.files[0],
         archivos.vuelos.files[0],
         archivos.envios.files,
-        escenario
+        escenario,
+        fechaInicio ? toBackendDate(fechaInicio) : undefined,
+        fechaFin    ? toBackendDate(fechaFin)    : undefined,
       );
       onResultado(resultado);
     } catch (error) {
@@ -105,24 +114,24 @@ export default function ControlPanel({ onResultado, onError, onCargando }: Contr
   };
 
   const colorMap: Record<string, string> = {
-    blue: 'border-blue-500/40 bg-blue-500/10 text-blue-400',
-    cyan: 'border-cyan-500/40 bg-cyan-500/10 text-cyan-400',
+    blue:  'border-blue-500/40 bg-blue-500/10 text-blue-400',
+    cyan:  'border-cyan-500/40 bg-cyan-500/10 text-cyan-400',
     amber: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
   };
   const colorMapActive: Record<string, string> = {
-    blue: 'border-blue-400 bg-blue-500/20 ring-1 ring-blue-400/30',
-    cyan: 'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400/30',
+    blue:  'border-blue-400 bg-blue-500/20 ring-1 ring-blue-400/30',
+    cyan:  'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400/30',
     amber: 'border-amber-400 bg-amber-500/20 ring-1 ring-amber-400/30',
   };
 
   return (
     <div className="space-y-5">
-      {/* Section: Archivos de datos */}
+      {/* Archivos de datos */}
       <div>
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
           Carga de Datos
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {FILE_CONFIGS.map(cfg => {
             const state = archivos[cfg.key];
             const hasFile = state.files.length > 0;
@@ -130,7 +139,7 @@ export default function ControlPanel({ onResultado, onError, onCargando }: Contr
               <div
                 key={cfg.key}
                 onClick={() => fileRefs.current[cfg.key]?.click()}
-                className={`relative cursor-pointer rounded-lg border-2 border-dashed p-4 transition-all duration-200 group
+                className={`relative cursor-pointer rounded-lg border-2 border-dashed p-4 transition-all duration-200
                   ${hasFile
                     ? 'border-emerald-500/50 bg-emerald-500/5'
                     : 'border-slate-600/50 bg-slate-800/30 hover:border-blue-500/40 hover:bg-blue-500/5'
@@ -142,7 +151,7 @@ export default function ControlPanel({ onResultado, onError, onCargando }: Contr
                   accept={cfg.accept}
                   onChange={(e) => handleFileChange(cfg.key, e)}
                   multiple={cfg.key === 'envios'}
-                  {...(cfg.key === 'envios' ? { webkitdirectory: "" } : {})}
+                  {...(cfg.key === 'envios' ? { webkitdirectory: '' } : {})}
                   className="hidden"
                 />
                 <div className="flex items-center gap-3">
@@ -160,12 +169,50 @@ export default function ControlPanel({ onResultado, onError, onCargando }: Contr
         </div>
       </div>
 
-      {/* Section: Escenario */}
+      {/* Filtro de fechas */}
+      <div>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+          <span>📅</span> Filtro de Fechas
+          <span className="text-slate-600 font-normal normal-case tracking-normal">(opcional)</span>
+        </h3>
+        <div className="space-y-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wider">Fecha Inicio</label>
+            <input
+              type="date"
+              value={fechaInicio}
+              onChange={e => handleFechaInicioChange(e.target.value)}
+              className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200
+                         focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
+                         [color-scheme:dark] transition-all"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-slate-500 uppercase tracking-wider">Fecha Fin</label>
+            <input
+              type="date"
+              value={fechaFin}
+              min={fechaInicio}
+              onChange={e => setFechaFin(e.target.value)}
+              className="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200
+                         focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
+                         [color-scheme:dark] transition-all"
+            />
+          </div>
+          {!fechaInicio && (
+            <p className="text-[10px] text-amber-400/80 flex items-center gap-1">
+              <span>⚠️</span> Sin fechas: procesa todos los envíos (puede ser lento)
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Tipo de Simulación */}
       <div>
         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
           Tipo de Simulación
         </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {ESCENARIOS.map(esc => {
             const isActive = escenario === esc.id;
             return (
