@@ -23,6 +23,7 @@ const MapaRutas = dynamic(() => import('@/components/MapaRutas'), {
 
 // ── Tipos de tabs ──
 type TabId = 'pedidos' | 'aeropuertos' | 'simulacion';
+type ModoMapa = 'sa' | 'alns' | 'ambos';
 
 const NAV_TABS: { id: TabId; icon: string; label: string; color: string }[] = [
   { id: 'pedidos',      icon: '📦', label: 'Pedidos',      color: 'blue'    },
@@ -216,6 +217,7 @@ export default function Home() {
   // Layout
   const [activeTab,        setActiveTab]        = useState<TabId | null>('pedidos');
   const [panelResultOpen,  setPanelResultOpen]  = useState(true);
+  const [modoMapa,         setModoMapa]         = useState<ModoMapa>('alns');
 
   // Umbrales dinámicos de capacidad
   const [umbralVerde, setUmbralVerde] = useState(30);
@@ -452,6 +454,8 @@ export default function Home() {
               selectedVuelo={vueloModal}
               umbralVerde={umbralVerde}
               umbralAmbar={umbralAmbar}
+              modoMapa={modoMapa}
+              onModoMapa={setModoMapa}
             />
 
             {/* Botón toggle panel de resultados */}

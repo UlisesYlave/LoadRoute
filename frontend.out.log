@@ -2,16 +2,9 @@
   - Local:        http://localhost:3000
 
  ✓ Starting...
- ✓ Ready in 1427ms
+ ✓ Ready in 1359ms
  ○ Compiling / ...
- ✓ Compiled / in 2.4s (583 modules)
- GET / 200 in 2511ms
- ✓ Compiled in 182ms (569 modules)
- GET / 200 in 26ms
- GET /_next/static/webpack/c1158467ae1c9d34.webpack.hot-update.json 404 in 143ms
- GET / 200 in 10ms
- GET / 200 in 47ms
- GET / 200 in 73ms
- GET / 200 in 58ms
- GET / 200 in 69ms
- GET / 200 in 53ms
+ ✓ Compiled / in 920ms (580 modules)
+ GET / 200 in 1017ms
+ ✓ Compiled in 103ms (300 modules)
+ GET / 200 in 39ms
