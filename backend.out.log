@@ -34,305 +34,226 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.4)
 
-2026-04-28T03:45:09.735-05:00  INFO 38620 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Starting LoadRouteApplication using Java 22.0.2 with PID 38620 (C:\Users\YORDAN\Documents\GitHub\LoadRoute_yordan\LoadRoute-Backend\target\classes started by YORDAN in C:\Users\YORDAN\Documents\GitHub\LoadRoute_yordan\LoadRoute-Backend)
-2026-04-28T03:45:09.737-05:00 DEBUG 38620 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Running with Spring Boot v3.2.4, Spring v6.1.5
-2026-04-28T03:45:09.737-05:00  INFO 38620 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : No active profile set, falling back to 1 default profile: "default"
-2026-04-28T03:45:10.110-05:00  INFO 38620 --- [loadroute-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
-2026-04-28T03:45:10.116-05:00  INFO 38620 --- [loadroute-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-04-28T03:45:10.116-05:00  INFO 38620 --- [loadroute-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.19]
-2026-04-28T03:45:10.140-05:00  INFO 38620 --- [loadroute-backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
-2026-04-28T03:45:10.140-05:00  INFO 38620 --- [loadroute-backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 382 ms
-2026-04-28T03:45:10.286-05:00  INFO 38620 --- [loadroute-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
-2026-04-28T03:45:10.289-05:00  INFO 38620 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Started LoadRouteApplication in 0.795 seconds (process running for 0.942)
-2026-04-28T03:45:56.709-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-04-28T03:45:56.710-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-04-28T03:45:56.710-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 0 ms
-2026-04-28T03:45:56.774-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T03:45:56.779-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T03:45:56.788-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T03:45:57.178-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T03:45:57.194-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 238202 envíos totales → 10 tras filtro [20260103 a 20260103]
-2026-04-28T03:45:57.202-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 160.00 | envios: 10/10
-2026-04-28T03:45:57.210-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 160.00
-2026-04-28T03:45:57.212-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 160.00
-2026-04-28T03:45:57.214-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 160.00
-2026-04-28T03:45:57.215-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 160.00
-2026-04-28T03:45:57.217-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 160.00
-2026-04-28T03:45:57.218-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 555 | peores: 661 | cache: 3730 hits | costo: 160.00 -> 160.00 (0.0%) | tiempo: 0.0s
-2026-04-28T03:45:57.377-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 160.00 → 160.00 | tiempo: 0 s
-2026-04-28T03:50:56.214-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T03:50:56.216-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T03:50:56.222-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T03:50:56.573-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T03:50:56.588-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 238202 envíos totales → 10 tras filtro [20260103 a 20260103]
-2026-04-28T03:50:56.590-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 160.00 | envios: 10/10
-2026-04-28T03:50:56.593-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 160.00
-2026-04-28T03:50:56.609-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 160.00
-2026-04-28T03:50:56.611-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 160.00
-2026-04-28T03:50:56.612-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 160.00
-2026-04-28T03:50:56.614-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 160.00
-2026-04-28T03:50:56.615-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 555 | peores: 661 | cache: 3730 hits | costo: 160.00 -> 160.00 (0.0%) | tiempo: 0.0s
-2026-04-28T03:50:56.740-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 160.00 → 160.00 | tiempo: 0 s
-2026-04-28T03:55:31.090-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T03:55:31.092-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T03:55:31.093-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 0 | omitidos: 0
-2026-04-28T03:55:31.447-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T03:55:31.461-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 0 vuelos | 238202 envíos totales → 2922 tras filtro [20260401 a 20260531]
-2026-04-28T03:55:31.465-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 1181760000.00 | envios: 0/2922
-2026-04-28T03:55:31.466-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 1181760000.00
-2026-04-28T03:55:31.467-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 1181760000.00
-2026-04-28T03:55:31.468-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 1181760000.00
-2026-04-28T03:55:31.469-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 1181760000.00
-2026-04-28T03:55:31.471-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 1181760000.00
-2026-04-28T03:55:31.471-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 0 | peores: 0 | cache: 0 hits | costo: 1181760000.00 -> 1181760000.00 (0.0%) | tiempo: 0.0s
-2026-04-28T03:55:32.233-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 1181760000.00 → 1181760000.00 | tiempo: 0 s
-2026-04-28T03:59:43.072-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T03:59:43.078-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T03:59:43.083-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T03:59:43.468-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T03:59:43.479-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 238202 envíos totales → 238202 tras filtro [inicio a fin]
-2026-04-28T04:00:22.037-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 2103779710.00 | envios: 238202/238202
-2026-04-28T04:00:27.891-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 2103759739.00
-2026-04-28T04:00:33.257-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 2103759739.00
-2026-04-28T04:00:37.590-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 2103759739.00
-2026-04-28T04:00:41.060-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 2103759739.00
-2026-04-28T04:00:43.827-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 2103759739.00
-2026-04-28T04:00:45.697-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 277 | peores: 891 | cache: 3621 hits | costo: 2103779710.00 -> 2103759739.00 (0.0%) | tiempo: 62.2s
-2026-04-28T04:04:56.583-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T04:04:56.595-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T04:04:56.608-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T04:04:57.068-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T04:04:57.101-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 238202 envíos totales → 327 tras filtro [20260102 a 20260120]
-2026-04-28T04:04:57.169-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 4514.00 | envios: 327/327
-2026-04-28T04:04:57.193-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 4514.00
-2026-04-28T04:04:57.206-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 4514.00
-2026-04-28T04:04:57.220-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 4514.00
-2026-04-28T04:04:57.231-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 4514.00
-2026-04-28T04:04:57.241-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 4514.00
-2026-04-28T04:04:57.246-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 948 | peores: 1533 | cache: 3647 hits | costo: 4514.00 -> 4514.00 (0.0%) | tiempo: 0.1s
-2026-04-28T04:05:04.736-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 4514.00 → 4514.00 | tiempo: 7 s
-2026-04-28T04:45:51.085-05:00  INFO 38620 --- [loadroute-backend] [io-8080-exec-10] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 341 | costo: 2103759739.00 → 2103759739.00 | tiempo: 2705 s
-2026-04-28T04:45:51.127-05:00  WARN 38620 --- [loadroute-backend] [io-8080-exec-10] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.context.request.async.AsyncRequestNotUsableException: ServletOutputStream failed to write: java.io.IOException: Se ha anulado una conexión establecida por el software en su equipo host.]
-2026-04-28T05:04:17.925-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:04:17.928-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:04:17.941-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T05:04:18.296-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:04:18.310-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 238202 envíos totales → 10 tras filtro [20260103 a 20260103]
-2026-04-28T05:04:18.314-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 160.00 | envios: 10/10
-2026-04-28T05:04:18.320-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 160.00
-2026-04-28T05:04:18.323-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 160.00
-2026-04-28T05:04:18.323-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 160.00
-2026-04-28T05:04:18.323-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 160.00
-2026-04-28T05:04:18.328-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 160.00
-2026-04-28T05:04:18.329-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 555 | peores: 661 | cache: 3730 hits | costo: 160.00 -> 160.00 (0.0%) | tiempo: 0.0s
-2026-04-28T05:04:18.448-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-1] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 160.00 → 160.00 | tiempo: 0 s
-2026-04-28T05:10:26.169-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:10:26.173-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:10:26.176-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T05:10:26.652-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
-2026-04-28T05:10:27.189-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
-2026-04-28T05:10:27.576-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
-2026-04-28T05:10:28.058-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
-2026-04-28T05:10:28.548-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
-2026-04-28T05:10:29.072-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
-2026-04-28T05:10:29.493-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
-2026-04-28T05:10:30.128-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
-2026-04-28T05:10:30.669-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
-2026-04-28T05:10:31.212-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
-2026-04-28T05:10:31.607-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
-2026-04-28T05:10:32.335-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
-2026-04-28T05:10:32.792-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
-2026-04-28T05:10:33.247-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
-2026-04-28T05:10:33.690-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
-2026-04-28T05:10:34.450-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
-2026-04-28T05:10:34.864-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
-2026-04-28T05:10:35.377-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
-2026-04-28T05:10:36.146-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
-2026-04-28T05:10:36.746-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
-2026-04-28T05:10:37.201-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
-2026-04-28T05:10:37.921-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
-2026-04-28T05:10:38.807-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
-2026-04-28T05:10:39.624-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
-2026-04-28T05:10:40.118-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
-2026-04-28T05:10:40.672-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
-2026-04-28T05:10:41.236-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
-2026-04-28T05:10:42.030-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
-2026-04-28T05:10:42.757-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
-2026-04-28T05:10:43.243-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:10:43.625-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 88293 tras filtro [20260101 a 20260405]
-2026-04-28T05:10:57.332-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 1171644.00 | envios: 88293/88293
-2026-04-28T05:11:00.467-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 1171644.00
-2026-04-28T05:11:03.329-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 1171644.00
-2026-04-28T05:11:05.925-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 1171644.00
-2026-04-28T05:11:08.443-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 1171644.00
-2026-04-28T05:11:11.017-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 1171644.00
-2026-04-28T05:11:11.702-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-4] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 29 | peores: 1083 | cache: 2886 hits | costo: 1171644.00 -> 1171644.00 (0.0%) | tiempo: 28.1s
-2026-04-28T05:12:04.361-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:12:04.369-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:12:04.379-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T05:12:05.087-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
-2026-04-28T05:12:05.787-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
-2026-04-28T05:12:06.265-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
-2026-04-28T05:12:06.833-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
-2026-04-28T05:12:07.391-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
-2026-04-28T05:12:08.069-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
-2026-04-28T05:12:08.604-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
-2026-04-28T05:12:09.271-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
-2026-04-28T05:12:09.957-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
-2026-04-28T05:12:10.618-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
-2026-04-28T05:12:11.205-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
-2026-04-28T05:12:11.976-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
-2026-04-28T05:12:12.618-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
-2026-04-28T05:12:13.247-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
-2026-04-28T05:12:13.770-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
-2026-04-28T05:12:14.604-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
-2026-04-28T05:12:15.300-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
-2026-04-28T05:12:15.915-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
-2026-04-28T05:12:16.834-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
-2026-04-28T05:12:17.497-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
-2026-04-28T05:12:18.176-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
-2026-04-28T05:12:19.247-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
-2026-04-28T05:12:20.110-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
-2026-04-28T05:12:21.006-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
-2026-04-28T05:12:21.811-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
-2026-04-28T05:12:22.529-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
-2026-04-28T05:12:23.021-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
-2026-04-28T05:12:23.875-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
-2026-04-28T05:12:24.857-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
-2026-04-28T05:12:25.421-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:12:25.654-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 21072 tras filtro [20260101 a 20260204]
-2026-04-28T05:12:29.442-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 278138.00 | envios: 21072/21072
-2026-04-28T05:12:30.908-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 278138.00
-2026-04-28T05:12:32.174-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 278138.00
-2026-04-28T05:12:33.085-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 278138.00
-2026-04-28T05:12:33.929-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 278138.00
-2026-04-28T05:12:34.630-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 278138.00
-2026-04-28T05:12:34.796-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 47 | peores: 1169 | cache: 2919 hits | costo: 278138.00 -> 278138.00 (0.0%) | tiempo: 9.1s
-2026-04-28T05:12:37.249-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:12:37.249-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:12:37.260-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T05:12:37.957-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
-2026-04-28T05:12:38.628-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
-2026-04-28T05:12:39.062-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
-2026-04-28T05:12:39.612-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
-2026-04-28T05:12:40.320-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
-2026-04-28T05:12:41.052-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
-2026-04-28T05:12:41.684-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
-2026-04-28T05:12:42.385-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
-2026-04-28T05:12:42.985-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
-2026-04-28T05:12:43.597-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
-2026-04-28T05:12:44.106-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
-2026-04-28T05:12:44.808-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
-2026-04-28T05:12:45.350-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
-2026-04-28T05:12:45.844-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
-2026-04-28T05:12:46.257-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
-2026-04-28T05:12:46.865-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
-2026-04-28T05:12:47.328-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
-2026-04-28T05:12:47.883-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
-2026-04-28T05:12:48.650-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
-2026-04-28T05:12:49.169-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
-2026-04-28T05:12:49.639-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
-2026-04-28T05:12:50.434-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
-2026-04-28T05:12:51.074-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
-2026-04-28T05:12:52.935-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
-2026-04-28T05:12:53.553-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
-2026-04-28T05:12:54.040-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
-2026-04-28T05:12:54.487-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
-2026-04-28T05:12:55.148-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
-2026-04-28T05:12:56.809-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
-2026-04-28T05:12:57.236-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:12:57.505-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 983 tras filtro [20260101 a 20260103]
-2026-04-28T05:12:57.645-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 12883.00 | envios: 983/983
-2026-04-28T05:12:57.739-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 12883.00
-2026-04-28T05:12:57.769-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 12883.00
-2026-04-28T05:12:57.794-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 12883.00
-2026-04-28T05:12:57.813-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 12883.00
-2026-04-28T05:12:57.828-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 12883.00
-2026-04-28T05:12:57.838-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 430 | peores: 1195 | cache: 3138 hits | costo: 12883.00 -> 12883.00 (0.0%) | tiempo: 0.3s
-2026-04-28T05:13:12.072-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-3] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 12883.00 → 12883.00 | tiempo: 14 s
-2026-04-28T05:15:41.171-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:15:41.183-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:15:41.183-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 0 | omitidos: 0
-2026-04-28T05:15:41.829-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
-2026-04-28T05:15:42.607-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
-2026-04-28T05:15:43.160-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
-2026-04-28T05:15:43.778-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
-2026-04-28T05:15:44.457-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
-2026-04-28T05:15:45.139-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
-2026-04-28T05:15:45.753-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
-2026-04-28T05:15:46.406-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
-2026-04-28T05:15:47.063-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
-2026-04-28T05:15:47.711-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
-2026-04-28T05:15:48.330-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
-2026-04-28T05:15:49.219-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
-2026-04-28T05:15:49.759-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
-2026-04-28T05:15:50.354-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
-2026-04-28T05:15:50.890-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
-2026-04-28T05:15:51.698-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
-2026-04-28T05:15:52.282-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
-2026-04-28T05:15:52.994-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
-2026-04-28T05:15:53.962-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
-2026-04-28T05:15:54.602-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
-2026-04-28T05:15:55.240-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
-2026-04-28T05:15:56.240-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
-2026-04-28T05:15:57.061-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
-2026-04-28T05:15:58.071-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
-2026-04-28T05:15:59.767-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
-2026-04-28T05:16:00.363-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
-2026-04-28T05:16:00.979-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
-2026-04-28T05:16:01.883-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
-2026-04-28T05:16:02.880-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
-2026-04-28T05:16:04.429-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:16:04.771-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 0 vuelos | 9519995 envíos totales → 2011 tras filtro [20260101 a 20260105]
-2026-04-28T05:16:04.776-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 820080000.00 | envios: 0/2011
-2026-04-28T05:16:04.777-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 820080000.00
-2026-04-28T05:16:04.777-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 820080000.00
-2026-04-28T05:16:04.778-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 820080000.00
-2026-04-28T05:16:04.779-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 820080000.00
-2026-04-28T05:16:04.779-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 820080000.00
-2026-04-28T05:16:04.780-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 0 | peores: 0 | cache: 0 hits | costo: 820080000.00 -> 820080000.00 (0.0%) | tiempo: 0.0s
-2026-04-28T05:16:05.586-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-2] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 820080000.00 → 820080000.00 | tiempo: 0 s
-2026-04-28T05:17:45.943-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
-2026-04-28T05:17:45.950-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
-2026-04-28T05:17:45.964-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
-2026-04-28T05:17:46.554-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
-2026-04-28T05:17:47.158-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
-2026-04-28T05:17:47.693-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
-2026-04-28T05:17:48.272-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
-2026-04-28T05:17:48.993-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
-2026-04-28T05:17:49.692-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
-2026-04-28T05:17:50.284-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
-2026-04-28T05:17:50.782-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
-2026-04-28T05:17:51.277-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
-2026-04-28T05:17:51.775-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
-2026-04-28T05:17:52.272-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
-2026-04-28T05:17:52.999-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
-2026-04-28T05:17:53.472-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
-2026-04-28T05:17:53.949-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
-2026-04-28T05:17:54.337-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
-2026-04-28T05:17:54.944-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
-2026-04-28T05:17:55.398-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
-2026-04-28T05:17:55.948-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
-2026-04-28T05:17:56.665-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
-2026-04-28T05:17:57.172-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
-2026-04-28T05:17:57.673-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
-2026-04-28T05:17:58.441-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
-2026-04-28T05:17:59.066-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
-2026-04-28T05:17:59.818-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
-2026-04-28T05:18:01.460-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
-2026-04-28T05:18:01.931-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
-2026-04-28T05:18:02.391-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
-2026-04-28T05:18:03.070-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
-2026-04-28T05:18:03.850-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
-2026-04-28T05:18:05.324-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
-2026-04-28T05:18:05.578-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 7348 tras filtro [20260428 a 20260501]
-2026-04-28T05:18:06.786-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 96536.00 | envios: 7348/7348
-2026-04-28T05:18:07.130-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 96536.00
-2026-04-28T05:18:07.392-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 96536.00
-2026-04-28T05:18:07.604-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 96536.00
-2026-04-28T05:18:07.826-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 96536.00
-2026-04-28T05:18:08.040-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 96536.00
-2026-04-28T05:18:08.076-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 115 | peores: 1246 | cache: 2967 hits | costo: 96536.00 -> 96536.00 (0.0%) | tiempo: 2.5s
-2026-04-28T05:21:16.742-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-5] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 96536.00 → 96536.00 | tiempo: 188 s
-2026-04-28T05:22:20.072-05:00  INFO 38620 --- [loadroute-backend] [nio-8080-exec-7] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 278138.00 → 278138.00 | tiempo: 585 s
-2026-04-28T05:22:20.077-05:00  WARN 38620 --- [loadroute-backend] [nio-8080-exec-7] .w.s.m.s.DefaultHandlerExceptionResolver : Resolved [org.springframework.web.context.request.async.AsyncRequestNotUsableException: ServletOutputStream failed to write: java.io.IOException: Se ha anulado una conexión establecida por el software en su equipo host.]
+2026-04-28T13:50:16.353-05:00  INFO 11060 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Starting LoadRouteApplication using Java 22.0.2 with PID 11060 (C:\Users\YORDAN\Documents\GitHub\LoadRoute_yordan\LoadRoute-Backend\target\classes started by YORDAN in C:\Users\YORDAN\Documents\GitHub\LoadRoute_yordan\LoadRoute-Backend)
+2026-04-28T13:50:16.354-05:00 DEBUG 11060 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Running with Spring Boot v3.2.4, Spring v6.1.5
+2026-04-28T13:50:16.354-05:00  INFO 11060 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : No active profile set, falling back to 1 default profile: "default"
+2026-04-28T13:50:16.733-05:00  INFO 11060 --- [loadroute-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8080 (http)
+2026-04-28T13:50:16.739-05:00  INFO 11060 --- [loadroute-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-28T13:50:16.739-05:00  INFO 11060 --- [loadroute-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.19]
+2026-04-28T13:50:16.760-05:00  INFO 11060 --- [loadroute-backend] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-28T13:50:16.760-05:00  INFO 11060 --- [loadroute-backend] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 384 ms
+2026-04-28T13:50:16.898-05:00  INFO 11060 --- [loadroute-backend] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8080 (http) with context path ''
+2026-04-28T13:50:16.901-05:00  INFO 11060 --- [loadroute-backend] [           main] com.loadroute.LoadRouteApplication       : Started LoadRouteApplication in 0.765 seconds (process running for 0.911)
+2026-04-28T13:50:26.941-05:00  INFO 11060 --- [loadroute-backend] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-28T13:50:26.942-05:00  INFO 11060 --- [loadroute-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-28T13:50:26.943-05:00  INFO 11060 --- [loadroute-backend] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-04-28T14:32:50.653-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
+2026-04-28T14:32:50.659-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
+2026-04-28T14:32:50.670-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
+2026-04-28T14:32:51.218-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
+2026-04-28T14:32:51.785-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
+2026-04-28T14:32:52.191-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
+2026-04-28T14:32:52.600-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
+2026-04-28T14:32:53.140-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
+2026-04-28T14:32:53.586-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
+2026-04-28T14:32:54.059-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
+2026-04-28T14:32:54.633-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
+2026-04-28T14:32:55.216-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
+2026-04-28T14:32:55.663-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
+2026-04-28T14:32:56.126-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
+2026-04-28T14:32:56.768-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
+2026-04-28T14:32:57.191-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
+2026-04-28T14:32:57.823-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
+2026-04-28T14:32:58.295-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
+2026-04-28T14:32:58.814-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
+2026-04-28T14:32:59.247-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
+2026-04-28T14:32:59.696-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
+2026-04-28T14:33:00.616-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
+2026-04-28T14:33:01.126-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
+2026-04-28T14:33:01.594-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
+2026-04-28T14:33:02.266-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
+2026-04-28T14:33:03.043-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
+2026-04-28T14:33:04.011-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
+2026-04-28T14:33:04.550-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
+2026-04-28T14:33:05.106-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
+2026-04-28T14:33:05.685-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
+2026-04-28T14:33:06.516-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
+2026-04-28T14:33:07.183-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
+2026-04-28T14:33:07.699-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
+2026-04-28T14:33:08.060-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 983 tras filtro [20260102 a 20260103]
+2026-04-28T14:33:08.317-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 12883.00 | envios: 983/983
+2026-04-28T14:33:08.489-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 12883.00
+2026-04-28T14:33:08.551-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 12883.00
+2026-04-28T14:33:08.592-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 12883.00
+2026-04-28T14:33:08.627-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 12883.00
+2026-04-28T14:33:08.655-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 12883.00
+2026-04-28T14:33:08.665-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 430 | peores: 1195 | cache: 3138 hits | costo: 12883.00 -> 12883.00 (0.0%) | tiempo: 0.6s
+2026-04-28T14:33:23.336-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 12883.00 → 12883.00 | tiempo: 14 s
+2026-04-28T15:49:42.547-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
+2026-04-28T15:49:42.551-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
+2026-04-28T15:49:42.557-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
+2026-04-28T15:49:43.172-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
+2026-04-28T15:49:43.759-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
+2026-04-28T15:49:44.120-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
+2026-04-28T15:49:44.588-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
+2026-04-28T15:49:45.144-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
+2026-04-28T15:49:45.676-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
+2026-04-28T15:49:46.422-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
+2026-04-28T15:49:47.048-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
+2026-04-28T15:49:47.693-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
+2026-04-28T15:49:48.299-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
+2026-04-28T15:49:48.692-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
+2026-04-28T15:49:49.227-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
+2026-04-28T15:49:49.748-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
+2026-04-28T15:49:50.174-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
+2026-04-28T15:49:50.505-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
+2026-04-28T15:49:51.269-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
+2026-04-28T15:49:51.716-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
+2026-04-28T15:49:52.230-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
+2026-04-28T15:49:52.873-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
+2026-04-28T15:49:53.272-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
+2026-04-28T15:49:53.672-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
+2026-04-28T15:49:54.355-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
+2026-04-28T15:49:55.255-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
+2026-04-28T15:49:56.015-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
+2026-04-28T15:49:56.531-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
+2026-04-28T15:49:56.907-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
+2026-04-28T15:49:57.393-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
+2026-04-28T15:49:57.937-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
+2026-04-28T15:49:58.557-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
+2026-04-28T15:49:58.886-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
+2026-04-28T15:49:59.087-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 1098 tras filtro [20260116 a 20260117]
+2026-04-28T15:49:59.387-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 14666.00 | envios: 1098/1098
+2026-04-28T15:49:59.477-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 14666.00
+2026-04-28T15:49:59.513-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 14666.00
+2026-04-28T15:49:59.546-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 14666.00
+2026-04-28T15:49:59.568-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 14666.00
+2026-04-28T15:49:59.588-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 14666.00
+2026-04-28T15:49:59.596-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 458 | peores: 1211 | cache: 3061 hits | costo: 14666.00 -> 14666.00 (0.0%) | tiempo: 0.5s
+2026-04-28T15:50:14.772-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 14666.00 → 14666.00 | tiempo: 15 s
+2026-04-28T15:56:10.510-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
+2026-04-28T15:56:10.517-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
+2026-04-28T15:56:10.531-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
+2026-04-28T15:56:11.022-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
+2026-04-28T15:56:11.531-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
+2026-04-28T15:56:11.878-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
+2026-04-28T15:56:12.295-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
+2026-04-28T15:56:12.685-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
+2026-04-28T15:56:13.073-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
+2026-04-28T15:56:13.571-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
+2026-04-28T15:56:13.990-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
+2026-04-28T15:56:14.438-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
+2026-04-28T15:56:14.910-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
+2026-04-28T15:56:15.292-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
+2026-04-28T15:56:15.973-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
+2026-04-28T15:56:16.368-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
+2026-04-28T15:56:16.823-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
+2026-04-28T15:56:17.233-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
+2026-04-28T15:56:17.809-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
+2026-04-28T15:56:18.233-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
+2026-04-28T15:56:18.750-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
+2026-04-28T15:56:19.580-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
+2026-04-28T15:56:20.080-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
+2026-04-28T15:56:20.487-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
+2026-04-28T15:56:21.271-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
+2026-04-28T15:56:21.855-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
+2026-04-28T15:56:22.523-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
+2026-04-28T15:56:23.083-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
+2026-04-28T15:56:23.512-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
+2026-04-28T15:56:23.918-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
+2026-04-28T15:56:24.567-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
+2026-04-28T15:56:25.247-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
+2026-04-28T15:56:25.713-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
+2026-04-28T15:56:25.955-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 1098 tras filtro [20260116 a 20260117]
+2026-04-28T15:56:26.109-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 14666.00 | envios: 1098/1098
+2026-04-28T15:56:26.192-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 14666.00
+2026-04-28T15:56:26.243-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 14666.00
+2026-04-28T15:56:26.272-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 14666.00
+2026-04-28T15:56:26.296-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 14666.00
+2026-04-28T15:56:26.317-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 14666.00
+2026-04-28T15:56:26.328-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 458 | peores: 1211 | cache: 3061 hits | costo: 14666.00 -> 14666.00 (0.0%) | tiempo: 0.4s
+2026-04-28T15:56:40.886-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 14666.00 → 14666.00 | tiempo: 14 s
+2026-04-28T16:01:01.000-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
+2026-04-28T16:01:01.006-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
+2026-04-28T16:01:01.020-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
+2026-04-28T16:01:01.746-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
+2026-04-28T16:01:02.415-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
+2026-04-28T16:01:02.767-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
+2026-04-28T16:01:03.153-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
+2026-04-28T16:01:03.725-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
+2026-04-28T16:01:04.125-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
+2026-04-28T16:01:04.506-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
+2026-04-28T16:01:04.920-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
+2026-04-28T16:01:05.502-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
+2026-04-28T16:01:06.047-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
+2026-04-28T16:01:06.494-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
+2026-04-28T16:01:07.039-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
+2026-04-28T16:01:07.534-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
+2026-04-28T16:01:07.935-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
+2026-04-28T16:01:08.263-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
+2026-04-28T16:01:08.766-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
+2026-04-28T16:01:09.122-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
+2026-04-28T16:01:09.579-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
+2026-04-28T16:01:10.637-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
+2026-04-28T16:01:11.099-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
+2026-04-28T16:01:11.502-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
+2026-04-28T16:01:12.148-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
+2026-04-28T16:01:12.822-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
+2026-04-28T16:01:13.446-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
+2026-04-28T16:01:13.944-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
+2026-04-28T16:01:14.344-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
+2026-04-28T16:01:14.986-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
+2026-04-28T16:01:15.873-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
+2026-04-28T16:01:16.559-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
+2026-04-28T16:01:16.995-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
+2026-04-28T16:01:17.170-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 983 tras filtro [20260102 a 20260103]
+2026-04-28T16:01:17.300-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 12883.00 | envios: 983/983
+2026-04-28T16:01:17.391-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 12883.00
+2026-04-28T16:01:17.424-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 12883.00
+2026-04-28T16:01:17.447-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 12883.00
+2026-04-28T16:01:17.464-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 12883.00
+2026-04-28T16:01:17.480-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 12883.00
+2026-04-28T16:01:17.485-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 430 | peores: 1195 | cache: 3138 hits | costo: 12883.00 -> 12883.00 (0.0%) | tiempo: 0.3s
+2026-04-28T16:01:31.153-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-2] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 12883.00 → 12883.00 | tiempo: 13 s
+2026-04-28T16:21:45.599-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Parseando archivos de datos...
+2026-04-28T16:21:45.602-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Aeropuertos cargados: 30
+2026-04-28T16:21:45.610-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Vuelos cargados: 2866 | omitidos: 0
+2026-04-28T16:21:46.346-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EBCI: 330005 | omitidos: 0
+2026-04-28T16:21:47.007-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EDDI: 344641 | omitidos: 0
+2026-04-28T16:21:47.362-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EHAM: 231212 | omitidos: 0
+2026-04-28T16:21:47.739-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde EKCH: 249682 | omitidos: 0
+2026-04-28T16:21:48.172-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LATI: 298796 | omitidos: 0
+2026-04-28T16:21:48.798-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LBSF: 294766 | omitidos: 0
+2026-04-28T16:21:49.167-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LDZA: 240456 | omitidos: 0
+2026-04-28T16:21:49.597-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LKPR: 310680 | omitidos: 0
+2026-04-28T16:21:50.022-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde LOWW: 323353 | omitidos: 0
+2026-04-28T16:21:50.669-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OAKB: 294102 | omitidos: 0
+2026-04-28T16:21:51.073-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OERK: 266875 | omitidos: 0
+2026-04-28T16:21:51.639-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OJAI: 347280 | omitidos: 0
+2026-04-28T16:21:52.026-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OMDB: 288087 | omitidos: 0
+2026-04-28T16:21:52.531-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OOMS: 301182 | omitidos: 0
+2026-04-28T16:21:52.853-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OPKC: 238023 | omitidos: 0
+2026-04-28T16:21:53.335-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OSDI: 368389 | omitidos: 0
+2026-04-28T16:21:53.693-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde OYSN: 257867 | omitidos: 0
+2026-04-28T16:21:54.128-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SABE: 329935 | omitidos: 0
+2026-04-28T16:21:55.050-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SBBR: 459129 | omitidos: 0
+2026-04-28T16:21:55.511-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SCEL: 282091 | omitidos: 0
+2026-04-28T16:21:55.923-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SEQM: 283577 | omitidos: 0
+2026-04-28T16:21:56.546-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SGAS: 357306 | omitidos: 0
+2026-04-28T16:21:57.170-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SKBO: 380677 | omitidos: 0
+2026-04-28T16:21:57.768-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SLLP: 446729 | omitidos: 0
+2026-04-28T16:21:58.243-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SPIM: 361214 | omitidos: 0
+2026-04-28T16:21:58.758-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SUAA: 272225 | omitidos: 0
+2026-04-28T16:21:59.222-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde SVMI: 268018 | omitidos: 0
+2026-04-28T16:22:00.046-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UBBB: 399085 | omitidos: 0
+2026-04-28T16:22:00.698-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde UMMS: 456411 | omitidos: 0
+2026-04-28T16:22:01.136-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.parser.Parsers   : Envios cargados desde VIDP: 238202 | omitidos: 0
+2026-04-28T16:22:01.313-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.service.RuteoAlgoritmoService        : Datos cargados: 30 aeropuertos | 2866 vuelos | 9519995 envíos totales → 2011 tras filtro [20260102 a 20260105]
+2026-04-28T16:22:01.581-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt inicio | T0=1000.0 | costo greedy: 26677.00 | envios: 2011/2011
+2026-04-28T16:22:01.696-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #1 | T=300.00 | costo: 26677.00
+2026-04-28T16:22:01.759-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #2 | T=90.00 | costo: 26677.00
+2026-04-28T16:22:01.803-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #3 | T=27.00 | costo: 26677.00
+2026-04-28T16:22:01.841-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #4 | T=8.10 | costo: 26677.00
+2026-04-28T16:22:01.876-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt reheat #5 | T=2.43 | costo: 26677.00
+2026-04-28T16:22:01.886-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] c.l.algorithm.SimulatedAnnealing         : SA-Opt fin | iter: 7425 | reheats: 5 | mejoras: 326 | peores: 1315 | cache: 3042 hits | costo: 26677.00 -> 26677.00 (0.0%) | tiempo: 0.6s
+2026-04-28T16:22:33.672-05:00  INFO 11060 --- [loadroute-backend] [pool-2-thread-1] com.loadroute.algorithm.ALNS             : ALNS fin → iter: 500 | costo: 26677.00 → 26677.00 | tiempo: 31 s

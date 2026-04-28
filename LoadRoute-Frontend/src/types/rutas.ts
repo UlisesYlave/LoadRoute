@@ -60,3 +60,12 @@ export interface RutaResponse {
   fechaInicio?: string;
   fechaFin?: string;
 }
+
+export interface SimulacionJob {
+  jobId: string;
+  status: 'PENDING' | 'RUNNING' | 'DONE' | 'ERROR';
+  progress: number;
+  message: string;
+  result?: RutaResponse;
+  error?: string;
+}

@@ -8,7 +8,7 @@
  */
 
 import { API_ENDPOINTS } from '@/config/constants';
-import { RutaResponse } from '@/types/rutas';
+import { RutaResponse, SimulacionJob } from '@/types/rutas';
 
 /**
  * Ejecuta la simulación subiendo los 3 archivos de datos al backend.
@@ -19,8 +19,30 @@ export async function ejecutarSimulacion(
   enviosFiles: File[],
   escenario: number,
   fechaInicio?: string,  // formato YYYYMMDD, opcional
-  fechaFin?: string      // formato YYYYMMDD, opcional
+  fechaFin?: string,     // formato YYYYMMDD, opcional
+  onProgress?: (job: SimulacionJob) => void
 ): Promise<RutaResponse> {
+  const started = await iniciarSimulacion(
+    aeropuertosFile,
+    vuelosFile,
+    enviosFiles,
+    escenario,
+    fechaInicio,
+    fechaFin
+  );
+  onProgress?.(started);
+
+  return esperarResultadoSimulacion(started.jobId, onProgress);
+}
+
+export async function iniciarSimulacion(
+  aeropuertosFile: File,
+  vuelosFile: File,
+  enviosFiles: File[],
+  escenario: number,
+  fechaInicio?: string,
+  fechaFin?: string
+): Promise<SimulacionJob> {
   const formData = new FormData();
   // Nombres de campo deben coincidir con @RequestPart del controlador
   formData.append('aeropuertosFile', aeropuertosFile);
@@ -34,7 +56,7 @@ export async function ejecutarSimulacion(
   if (fechaInicio) params.set('fechaInicio', fechaInicio);
   if (fechaFin)    params.set('fechaFin', fechaFin);
 
-  const response = await fetch(`${API_ENDPOINTS.SIMULAR}?${params.toString()}`, {
+  const response = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}?${params.toString()}`, {
     method: 'POST',
     body: formData,
   });
@@ -46,6 +68,33 @@ export async function ejecutarSimulacion(
   }
 
   return response.json();
+}
+
+export async function obtenerEstadoSimulacion(jobId: string): Promise<SimulacionJob> {
+  const response = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}/${jobId}`);
+  if (!response.ok) {
+    throw new Error(`No se pudo consultar la simulacion: ${response.status}`);
+  }
+  return response.json();
+}
+
+async function esperarResultadoSimulacion(
+  jobId: string,
+  onProgress?: (job: SimulacionJob) => void
+): Promise<RutaResponse> {
+  while (true) {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const job = await obtenerEstadoSimulacion(jobId);
+    onProgress?.(job);
+
+    if (job.status === 'DONE' && job.result) {
+      return job.result;
+    }
+
+    if (job.status === 'ERROR') {
+      throw new Error(job.error || job.message || 'La simulacion fallo');
+    }
+  }
 }
 
 /**

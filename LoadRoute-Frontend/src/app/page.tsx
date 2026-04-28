@@ -23,6 +23,7 @@ const MapaRutas = dynamic(() => import('@/components/MapaRutas'), {
 
 // ── Tipos de tabs ──
 type TabId = 'pedidos' | 'aeropuertos' | 'simulacion';
+type ModoMapa = 'sa' | 'alns' | 'ambos';
 
 const NAV_TABS: { id: TabId; icon: string; label: string; color: string }[] = [
   { id: 'pedidos',      icon: '📦', label: 'Pedidos',      color: 'blue'    },
@@ -216,6 +217,7 @@ export default function Home() {
   // Layout
   const [activeTab,        setActiveTab]        = useState<TabId | null>('pedidos');
   const [panelResultOpen,  setPanelResultOpen]  = useState(true);
+  const [modoMapa,         setModoMapa]         = useState<ModoMapa>('alns');
 
   // Umbrales dinámicos de capacidad
   const [umbralVerde, setUmbralVerde] = useState(30);
@@ -452,6 +454,8 @@ export default function Home() {
               selectedVuelo={vueloModal}
               umbralVerde={umbralVerde}
               umbralAmbar={umbralAmbar}
+              modoMapa={modoMapa}
+              onModoMapa={setModoMapa}
             />
 
             {/* Botón toggle panel de resultados */}
@@ -471,9 +475,9 @@ export default function Home() {
           {/* ── PANEL RESULTADOS (derecha, colapsable) ── */}
           <div
             className="overflow-hidden shrink-0 border-l border-slate-700/50 bg-[#0c1a30] flex flex-col"
-            style={{ width: panelResultOpen ? '400px' : '0px', transition: 'width 0.25s ease' }}
+            style={{ width: panelResultOpen ? 'min(820px, 52vw)' : '0px', transition: 'width 0.25s ease' }}
           >
-            <div style={{ width: '400px' }} className="h-full overflow-y-auto custom-scrollbar">
+            <div style={{ width: 'min(820px, 52vw)' }} className="h-full overflow-y-auto custom-scrollbar">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">

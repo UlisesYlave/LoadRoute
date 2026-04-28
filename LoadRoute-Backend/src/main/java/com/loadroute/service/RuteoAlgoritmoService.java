@@ -47,6 +47,11 @@ public class RuteoAlgoritmoService {
 
     private static final Logger LOG = Logger.getLogger(RuteoAlgoritmoService.class.getName());
 
+    @FunctionalInterface
+    public interface ProgressReporter {
+        void update(int progress, String message);
+    }
+
     /** Formato esperado para fechaInicio y fechaFin: YYYYMMDD */
     private static final DateTimeFormatter FMT_FECHA = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -69,6 +74,17 @@ public class RuteoAlgoritmoService {
                                           int escenario,
                                           String fechaInicio,
                                           String fechaFin) throws IOException {
+        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, null);
+    }
+
+    public RutaResponseDTO ejecutarRuteo(InputStream aeropuertosIS,
+                                          InputStream vuelosIS,
+                                          List<MultipartFile> enviosFiles,
+                                          int escenario,
+                                          String fechaInicio,
+                                          String fechaFin,
+                                          ProgressReporter progress) throws IOException {
+        report(progress, 8, "Parseando archivos de datos...");
         // ── 1. Reset de IDs de vuelos ────────────────────────────────────────
         Vuelo.resetContador();
 
@@ -76,6 +92,7 @@ public class RuteoAlgoritmoService {
         LOG.info("Parseando archivos de datos...");
         Map<String, Aeropuerto> aeropuertos = Parsers.parsearAeropuertos(aeropuertosIS);
         List<Vuelo>             vuelos      = Parsers.parsearVuelos(vuelosIS, aeropuertos);
+        report(progress, 18, "Aeropuertos y vuelos cargados. Leyendo envios...");
 
         Map<String, Envio> enviosCrudos = new LinkedHashMap<>();
         for (MultipartFile file : enviosFiles) {
@@ -88,6 +105,7 @@ public class RuteoAlgoritmoService {
 
         // ── 3. Filtrar por fecha (HORA LOCAL del aeropuerto, no GMT) ─────────
         Map<String, Envio> envios = filtrarEnviosPorFecha(enviosCrudos, fechaInicio, fechaFin);
+        report(progress, 30, String.format("Filtro aplicado: %d envios en el rango.", envios.size()));
 
         LOG.info(String.format(
             "Datos cargados: %d aeropuertos | %d vuelos | %d envíos totales → %d tras filtro [%s a %s]",
@@ -106,6 +124,7 @@ public class RuteoAlgoritmoService {
 
         // ── 4. Construir red logística ────────────────────────────────────────
         RedLogistica red = new RedLogistica(aeropuertos.values(), vuelos);
+        report(progress, 35, "Red logistica construida.");
 
         // ── 5. Armar respuesta base ───────────────────────────────────────────
         RutaResponseDTO response = new RutaResponseDTO();
@@ -120,13 +139,18 @@ public class RuteoAlgoritmoService {
 
         // ── 6. Ejecutar escenario ─────────────────────────────────────────────
         switch (escenario) {
-            case 1 -> ejecutarEscenario1(envios, red, response);
-            case 2 -> ejecutarEscenario2(envios, red, response);
-            case 3 -> ejecutarEscenario3(envios, vuelos, red, response);
-            default -> ejecutarEscenario1(envios, red, response);
+            case 1 -> ejecutarEscenario1(envios, red, response, progress);
+            case 2 -> ejecutarEscenario2(envios, red, response, progress);
+            case 3 -> ejecutarEscenario3(envios, vuelos, red, response, progress);
+            default -> ejecutarEscenario1(envios, red, response, progress);
         }
 
+        report(progress, 98, "Preparando respuesta para el dashboard...");
         return response;
+    }
+
+    private void report(ProgressReporter progress, int pct, String message) {
+        if (progress != null) progress.update(pct, message);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -208,7 +232,7 @@ public class RuteoAlgoritmoService {
     // ══════════════════════════════════════════════════════════════════════════
 
     private void ejecutarEscenario1(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response) {
+                                    RutaResponseDTO response, ProgressReporter progress) {
         int envioCount = envios.size();
         // Tiempo proporcional al tamaño: mínimo 1 min, máximo 90 min
         long tiempoMin = Math.min(90L, Math.max(1L, envioCount / 150L));
@@ -219,9 +243,11 @@ public class RuteoAlgoritmoService {
                 .setTemperaturaMinima(1.0)
                 .setTiempoMaxMinutos(tiempoMin);
 
+        report(progress, 45, "Ejecutando Simulated Annealing...");
         long t0 = System.currentTimeMillis();
         SolucionEstado sol = sa.optimizar(envios);
         long ms = System.currentTimeMillis() - t0;
+        report(progress, 88, "Simulated Annealing completado.");
 
         response.setResultadoSA(buildResultado("Simulated Annealing",
                 sa.getCostoInicial(), sa.getCostoFinal(),
@@ -229,7 +255,7 @@ public class RuteoAlgoritmoService {
     }
 
     private void ejecutarEscenario2(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response) {
+                                    RutaResponseDTO response, ProgressReporter progress) {
         int envioCount = envios.size();
         long tiempoMin = Math.min(45L, Math.max(1L, envioCount / 150L));
 
@@ -239,9 +265,11 @@ public class RuteoAlgoritmoService {
                 .setTemperaturaMinima(0.1)
                 .setTiempoMaxMinutos(tiempoMin);
 
+        report(progress, 42, "Ejecutando Simulated Annealing...");
         long t0 = System.currentTimeMillis();
         SolucionEstado solSA = sa.optimizar(envios);
         long msSA = System.currentTimeMillis() - t0;
+        report(progress, 68, "SA completado. Ejecutando ALNS...");
 
         response.setResultadoSA(buildResultado("Simulated Annealing",
                 sa.getCostoInicial(), sa.getCostoFinal(),
@@ -256,6 +284,7 @@ public class RuteoAlgoritmoService {
         long t1 = System.currentTimeMillis();
         SolucionEstado solALNS = alns.optimizar(envios, solSA.clonar());
         long msALNS = System.currentTimeMillis() - t1;
+        report(progress, 92, "ALNS completado.");
 
         response.setResultadoALNS(buildResultado("ALNS",
                 alns.getCostoInicial(), alns.getCostoFinal(),
@@ -263,7 +292,7 @@ public class RuteoAlgoritmoService {
     }
 
     private void ejecutarEscenario3(Map<String, Envio> envios, List<Vuelo> todosVuelos,
-                                    RedLogistica red, RutaResponseDTO response) {
+                                    RedLogistica red, RutaResponseDTO response, ProgressReporter progress) {
         int envioCount = envios.size();
         long tiempoMin = Math.min(30L, Math.max(1L, envioCount / 200L));
 
@@ -272,9 +301,11 @@ public class RuteoAlgoritmoService {
                 .setAlfa(0.99)
                 .setTiempoMaxMinutos(tiempoMin);
 
+        report(progress, 42, "Ejecutando SA para dia normal...");
         long t0 = System.currentTimeMillis();
         SolucionEstado solBase = sa.optimizar(envios);
         long msSA = System.currentTimeMillis() - t0;
+        report(progress, 68, "SA completado. Simulando colapso con ALNS...");
 
         response.setResultadoSA(buildResultado("SA (Día Normal)",
                 sa.getCostoInicial(), sa.getCostoFinal(),
@@ -320,6 +351,7 @@ public class RuteoAlgoritmoService {
             }
         }
         long msALNS = System.currentTimeMillis() - t1;
+        report(progress, 92, "Replanificacion de colapso completada.");
 
         if (!colapsado) {
             mensajeColapso = "Flota agotada completamente sin alcanzar el umbral de colapso (10% de envios huerfanos).";

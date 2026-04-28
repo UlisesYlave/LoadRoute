@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { ejecutarSimulacion } from '@/services/ruteoService';
-import { RutaResponse } from '@/types/rutas';
+import { RutaResponse, SimulacionJob } from '@/types/rutas';
 
 interface ControlPanelProps {
   onResultado: (resultado: RutaResponse) => void;
@@ -64,6 +64,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [ejecutando, setEjecutando] = useState(false);
+  const [progreso, setProgreso] = useState<SimulacionJob | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleFileChange = useCallback((key: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +95,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     setEjecutando(true);
     onCargando(true);
     onError('');
+    setProgreso({ jobId: '', status: 'PENDING', progress: 0, message: 'Preparando simulacion...' });
     try {
       const resultado = await ejecutarSimulacion(
         archivos.aeropuertos.files[0],
@@ -102,6 +104,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
         escenario,
         fechaInicio ? toBackendDate(fechaInicio) : undefined,
         fechaFin    ? toBackendDate(fechaFin)    : undefined,
+        setProgreso,
       );
       onResultado(resultado);
     } catch (error) {
@@ -110,6 +113,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     } finally {
       setEjecutando(false);
       onCargando(false);
+      setProgreso(null);
     }
   };
 
@@ -261,6 +265,21 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
           </>
         )}
       </button>
+
+      {progreso && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-blue-100 truncate">{progreso.message}</span>
+            <span className="font-mono text-blue-300">{progreso.progress}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full rounded-full bg-blue-400 transition-all duration-300"
+              style={{ width: `${progreso.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
