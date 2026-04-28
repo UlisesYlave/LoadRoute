@@ -43,6 +43,30 @@ function formatFechaSimulacion(fechaInicioRaw: string, simDia: number): string {
   });
 }
 
+function getDiasRango(fechaInicioRaw?: string, fechaFinRaw?: string): number | null {
+  if (!fechaInicioRaw || !fechaFinRaw || fechaInicioRaw.length < 8 || fechaFinRaw.length < 8) {
+    return null;
+  }
+
+  const inicio = new Date(
+    Number(fechaInicioRaw.slice(0, 4)),
+    Number(fechaInicioRaw.slice(4, 6)) - 1,
+    Number(fechaInicioRaw.slice(6, 8))
+  );
+  const fin = new Date(
+    Number(fechaFinRaw.slice(0, 4)),
+    Number(fechaFinRaw.slice(4, 6)) - 1,
+    Number(fechaFinRaw.slice(6, 8))
+  );
+
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+    return null;
+  }
+
+  const MS_POR_DIA = 24 * 60 * 60 * 1000;
+  return Math.floor((fin.getTime() - inicio.getTime()) / MS_POR_DIA);
+}
+
 function formatoHora(minutos: number): string {
   const h = Math.floor(minutos / 60);
   const mn = Math.floor(minutos % 60);
@@ -51,7 +75,7 @@ function formatoHora(minutos: number): string {
 
 // ── Componente tab de Simulación (panel izquierdo) ──
 function SimulacionPanel({
-  simDia, simTiempoMinutos, fechaInicioRaw, isPlaying,
+  simDia, simTiempoMinutos, fechaInicioRaw, isPlaying, rangoFinalizado,
   onPlay, onPause, onStop, onReiniciar,
   umbralVerde, umbralAmbar, onUmbralVerde, onUmbralAmbar,
 }: {
@@ -59,6 +83,7 @@ function SimulacionPanel({
   simTiempoMinutos: number;
   fechaInicioRaw: string;
   isPlaying: boolean;
+  rangoFinalizado: boolean;
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -84,15 +109,21 @@ function SimulacionPanel({
         <p className="text-3xl font-mono text-emerald-400 font-bold tracking-wider">
           {formatoHora(simTiempoMinutos)}
         </p>
+        {rangoFinalizado && (
+          <p className="mt-3 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+            Rango finalizado
+          </p>
+        )}
       </div>
 
       {/* Controles de reproducción */}
       <div>
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Controles</p>
         <div className="grid grid-cols-3 gap-2">
-          <button onClick={onPlay} disabled={isPlaying}
+          <button onClick={onPlay} disabled={isPlaying || rangoFinalizado}
             className={`flex flex-col items-center gap-1 py-3 rounded-lg text-xs font-semibold transition-all
-              ${isPlaying ? 'bg-blue-600/80 text-white ring-1 ring-blue-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}>
+              ${isPlaying ? 'bg-blue-600/80 text-white ring-1 ring-blue-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}
+              ${rangoFinalizado ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <span className="text-base">▶</span>Iniciar
           </button>
           <button onClick={onPause} disabled={!isPlaying}
@@ -179,6 +210,7 @@ export default function Home() {
   const [simDia,           setSimDia]           = useState(0);
   const [isPlaying,        setIsPlaying]        = useState(false);
   const [fechaInicioRaw,   setFechaInicioRaw]   = useState(''); // YYYYMMDD
+  const [fechaFinRaw,      setFechaFinRaw]      = useState(''); // YYYYMMDD
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Layout
@@ -188,6 +220,8 @@ export default function Home() {
   // Umbrales dinámicos de capacidad
   const [umbralVerde, setUmbralVerde] = useState(30);
   const [umbralAmbar, setUmbralAmbar] = useState(70);
+  const maxSimDia = getDiasRango(fechaInicioRaw, fechaFinRaw);
+  const rangoFinalizado = maxSimDia !== null && simDia >= maxSimDia && simTiempoMinutos >= 1439;
 
   useEffect(() => {
     verificarSaludBackend().then(setBackendActivo);
@@ -200,6 +234,10 @@ export default function Home() {
         setSimTiempoMinutos(prev => {
           const next = prev + 3;
           if (next >= 1440) {
+            if (maxSimDia !== null && simDia >= maxSimDia) {
+              setIsPlaying(false);
+              return 1439;
+            }
             setSimDia(d => d + 1);
             return next % 1440;
           }
@@ -210,7 +248,7 @@ export default function Home() {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isPlaying]);
+  }, [isPlaying, maxSimDia, simDia]);
 
   const handleReiniciar = () => {
     setResultado(null);
@@ -218,6 +256,7 @@ export default function Home() {
     setSimTiempoMinutos(0);
     setSimDia(0);
     setFechaInicioRaw('');
+    setFechaFinRaw('');
   };
 
   const handleStop = () => {
@@ -256,6 +295,10 @@ export default function Home() {
           <ControlPanel
             onResultado={(res) => {
               setResultado(res);
+              setSimTiempoMinutos(0);
+              setSimDia(0);
+              setFechaInicioRaw(res.fechaInicio || fechaInicioRaw);
+              setFechaFinRaw(res.fechaFin || '');
               setIsPlaying(true);
             }}
             onError={setError}
@@ -383,6 +426,7 @@ export default function Home() {
                   simTiempoMinutos={simTiempoMinutos}
                   fechaInicioRaw={fechaInicioRaw}
                   isPlaying={isPlaying}
+                  rangoFinalizado={rangoFinalizado}
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onStop={handleStop}

@@ -21,6 +21,11 @@ export interface TramoDTO {
   destinoLat: number;
   destinoLon: number;
   capacidad: number;
+  vueloId: number;
+  horaSalidaLocal: string;
+  horaLlegadaLocal: string;
+  salidaMinutosGMT: number;
+  llegadaMinutosGMT: number;
 }
 
 export interface RutaMuestra {
@@ -52,4 +57,6 @@ export interface RutaResponse {
   aeropuertos: AeropuertoDTO[];
   totalVuelos: number;
   totalEnviosCargados: number;
+  fechaInicio?: string;
+  fechaFin?: string;
 }
