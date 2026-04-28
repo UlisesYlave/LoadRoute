@@ -475,9 +475,9 @@ export default function Home() {
           {/* ── PANEL RESULTADOS (derecha, colapsable) ── */}
           <div
             className="overflow-hidden shrink-0 border-l border-slate-700/50 bg-[#0c1a30] flex flex-col"
-            style={{ width: panelResultOpen ? '400px' : '0px', transition: 'width 0.25s ease' }}
+            style={{ width: panelResultOpen ? 'min(820px, 52vw)' : '0px', transition: 'width 0.25s ease' }}
           >
-            <div style={{ width: '400px' }} className="h-full overflow-y-auto custom-scrollbar">
+            <div style={{ width: 'min(820px, 52vw)' }} className="h-full overflow-y-auto custom-scrollbar">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">

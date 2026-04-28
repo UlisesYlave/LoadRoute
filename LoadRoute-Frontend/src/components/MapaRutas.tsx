@@ -9,6 +9,7 @@ import {
   useMap,
   CircleMarker,
   Tooltip,
+  ZoomControl,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { RutaResponse, AeropuertoDTO } from '@/types/rutas';
@@ -128,8 +129,9 @@ export default function MapaRutas({
         maxBounds={[[-90, -200], [90, 200]]}
         maxBoundsViscosity={1.0}
         style={{ width: '100%', height: '100%', backgroundColor: '#aadaff' }}
-        zoomControl={true}
+        zoomControl={false}
       >
+        <ZoomControl position="bottomleft" />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           attribution='&copy; CARTO'
