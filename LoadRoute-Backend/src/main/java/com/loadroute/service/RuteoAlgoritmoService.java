@@ -311,6 +311,8 @@ public class RuteoAlgoritmoService {
         RedLogistica redALNS = runALNS ? new RedLogistica(aeropuertos, vuelosALNS) : null;
         Map<String, Envio> pendientesSA = runSA ? new LinkedHashMap<>() : null;
         Map<String, Envio> pendientesALNS = runALNS ? new LinkedHashMap<>() : null;
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = runSA ? new HashMap<>() : null;
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = runALNS ? new HashMap<>() : null;
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
 
@@ -333,7 +335,7 @@ public class RuteoAlgoritmoService {
                 SolucionEstado solSA = sa.optimizar(pendientesSA);
                 long msSA = System.currentTimeMillis() - t0;
                 chunk.setResultadoSA(buildResultado("SA (Periodo)", sa.getCostoInicial(), sa.getCostoFinal(),
-                        sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, Collections.emptyList()));
+                        sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, Collections.emptyList(), reservasSA));
                 retirarEnviosProcesados(pendientesSA, solSA);
             }
             if (runALNS) {
@@ -345,7 +347,7 @@ public class RuteoAlgoritmoService {
                 SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS);
                 long msALNS = System.currentTimeMillis() - t1;
                 chunk.setResultadoALNS(buildResultado("ALNS (Periodo)", alns.getCostoInicial(), alns.getCostoFinal(),
-                        alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, Collections.emptyList()));
+                        alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, Collections.emptyList(), reservasALNS));
                 retirarEnviosProcesados(pendientesALNS, solALNS);
             }
             chunks.add(chunk);
@@ -379,6 +381,8 @@ public class RuteoAlgoritmoService {
         Set<Integer> canceladosAcumulados = new HashSet<>();
         Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
         Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = new HashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = new HashMap<>();
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
 
@@ -420,10 +424,10 @@ public class RuteoAlgoritmoService {
             List<Integer> idsCanceladosList = new ArrayList<>(canceladosAcumulados);
             chunk.setResultadoSA(buildResultado("SA (Dia a Dia)",
                     sa.getCostoInicial(), sa.getCostoFinal(),
-                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosList));
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosList, reservasSA));
             chunk.setResultadoALNS(buildResultado("ALNS (Dia a Dia)",
                     alns.getCostoInicial(), alns.getCostoFinal(),
-                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosList));
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosList, reservasALNS));
 
             chunks.add(chunk);
             if (progress != null) progress.onChunk(chunk);
@@ -448,6 +452,8 @@ public class RuteoAlgoritmoService {
         Set<Integer> canceladosALNS = new HashSet<>();
         Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
         Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = new HashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = new HashMap<>();
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
         int totalVuelos = vuelos.size(), canceladosTotal = 0;
@@ -504,9 +510,9 @@ public class RuteoAlgoritmoService {
             List<Integer> idsCanceladosSA = new ArrayList<>(canceladosSA);
             List<Integer> idsCanceladosALNS = new ArrayList<>(canceladosALNS);
             chunk.setResultadoSA(buildResultado("SA (Colapso)", sa.getCostoInicial(), sa.getCostoFinal(),
-                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosSA));
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosSA, reservasSA));
             ResultadoAlgoritmo resALNS = buildResultado("ALNS (Colapso)", alns.getCostoInicial(), alns.getCostoFinal(),
-                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosALNS);
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosALNS, reservasALNS);
             resALNS.setMensajeColapso(mensajeColapso);
             chunk.setResultadoALNS(resALNS);
             chunks.add(chunk);
@@ -528,8 +534,9 @@ public class RuteoAlgoritmoService {
                                                SolucionEstado sol,
                                                Map<String, Envio> envios,
                                                int diaOffset,
-                                               List<Integer> canceladosIds) {
-        int noAceptados = sol.aplicarRestriccionCapacidadAeropuertos();
+                                               List<Integer> canceladosIds,
+                                               Map<String, List<SolucionEstado.OccupancyEvent>> reservasAeropuerto) {
+        int noAceptados = sol.aplicarRestriccionCapacidadAeropuertos(reservasAeropuerto);
         double costoFinalAjustado = sol.evaluarCostoTotal();
         ResultadoAlgoritmo r = new ResultadoAlgoritmo();
         r.setAlgoritmo(nombre);

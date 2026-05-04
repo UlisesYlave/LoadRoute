@@ -44,8 +44,12 @@ public class SolucionEstado {
      * se remueve su ruta y queda registrado como no aceptado.
      */
     public int aplicarRestriccionCapacidadAeropuertos() {
+        return aplicarRestriccionCapacidadAeropuertos(new HashMap<>());
+    }
+
+    public int aplicarRestriccionCapacidadAeropuertos(Map<String, List<OccupancyEvent>> reservasPorAero) {
         idsNoAceptados.clear();
-        Map<String, List<OccupancyEvent>> eventosPorAero = new HashMap<>();
+        Map<String, List<OccupancyEvent>> eventosPorAero = reservasPorAero != null ? reservasPorAero : new HashMap<>();
         List<String> idsConRuta = new ArrayList<>();
 
         for (Map.Entry<String, List<Vuelo>> entry : asignaciones.entrySet()) {
@@ -204,10 +208,10 @@ public class SolucionEstado {
 
     // ── Clases Internas y Auxiliares ─────────────────────────────────────────
 
-    private static class OccupancyEvent {
-        LocalDateTime tiempo;
-        int delta;
-        OccupancyEvent(LocalDateTime t, int d) { this.tiempo = t; this.delta = d; }
+    public static class OccupancyEvent {
+        public LocalDateTime tiempo;
+        public int delta;
+        public OccupancyEvent(LocalDateTime t, int d) { this.tiempo = t; this.delta = d; }
     }
 
     private static class AirportInterval {
