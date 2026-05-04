@@ -73,7 +73,7 @@ public class RutasController {
      * @return DTO con resultados de los algoritmos
      */
     @PostMapping("/simular")
-    public ResponseEntity<RutaResponseDTO> simular(
+    public ResponseEntity<List<RutaResponseDTO>> simular(
             @RequestPart("aeropuertosFile") MultipartFile aeropuertosFile,
             @RequestPart("vuelosFile")      MultipartFile vuelosFile,
             @RequestPart("enviosFiles")     List<MultipartFile> enviosFiles,
@@ -82,7 +82,7 @@ public class RutasController {
             @RequestParam(value = "fechaFin",    required = false)    String fechaFin
     ) throws IOException {
 
-        RutaResponseDTO response = ruteoService.ejecutarRuteo(
+        List<RutaResponseDTO> response = ruteoService.ejecutarRuteo(
                 aeropuertosFile.getInputStream(),
                 vuelosFile.getInputStream(),
                 enviosFiles,

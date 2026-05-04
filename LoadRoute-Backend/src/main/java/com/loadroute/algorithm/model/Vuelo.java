@@ -45,6 +45,24 @@ public class Vuelo {
         this.capacidadOcupada = 0;
     }
 
+    private Vuelo(int id, Aeropuerto origen, Aeropuerto destino,
+                 LocalTime horaSalidaLocal, LocalTime horaLlegadaLocal,
+                 int capacidadMax, int capacidadOcupada) {
+        this.id               = id;
+        this.origen           = origen;
+        this.destino          = destino;
+        this.horaSalidaLocal  = horaSalidaLocal;
+        this.horaLlegadaLocal = horaLlegadaLocal;
+        this.capacidadMax     = capacidadMax;
+        this.capacidadOcupada = capacidadOcupada;
+    }
+
+    public Vuelo clonar() {
+        return new Vuelo(this.id, this.origen, this.destino,
+                this.horaSalidaLocal, this.horaLlegadaLocal,
+                this.capacidadMax, this.capacidadOcupada);
+    }
+
     /** Resetea el contador global de IDs (útil entre ejecuciones). */
     public static void resetContador() {
         CONTADOR.set(0);

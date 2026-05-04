@@ -52,20 +52,31 @@ public class RuteoAsyncJobService {
         executor.submit(() -> {
             update(jobId, "RUNNING", 5, "Archivos recibidos. Iniciando simulacion...");
             try {
-                RutaResponseDTO result = ruteoService.ejecutarRuteo(
+                List<RutaResponseDTO> chunks = ruteoService.ejecutarRuteo(
                         new ByteArrayInputStream(aeropuertosBytes),
                         new ByteArrayInputStream(vuelosBytes),
                         enviosBytes,
                         escenario,
                         fechaInicio,
                         fechaFin,
-                        (progress, message) -> update(jobId, "RUNNING", progress, message)
+                        new RuteoAlgoritmoService.ProgressReporter() {
+                            @Override
+                            public void update(int progress, String message) {
+                                RuteoAsyncJobService.this.update(jobId, "RUNNING", progress, message);
+                            }
+                            @Override
+                            public void onChunk(RutaResponseDTO chunk) {
+                                SimulacionJobDTO current = jobs.get(jobId);
+                                if (current != null) {
+                                    current.addChunk(chunk);
+                                }
+                            }
+                        }
                 );
                 SimulacionJobDTO current = jobs.get(jobId);
                 current.setStatus("DONE");
                 current.setProgress(100);
                 current.setMessage("Simulacion completada.");
-                current.setResult(result);
             } catch (Exception e) {
                 SimulacionJobDTO current = jobs.get(jobId);
                 current.setStatus("ERROR");

@@ -77,9 +77,9 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
         />
         <MetricCard label="Costo Final" value={formatCosto(res.costoFinal)} color="cyan" />
         <MetricCard
-          label="Mejora"
+          label="Mejora Agregada"
           value={`${res.mejoraRelativa.toFixed(1)}%`}
-          sub={`${res.iteraciones.toLocaleString()} iteraciones`}
+          sub={`${res.iteraciones.toLocaleString()} iteraciones totales`}
           color={res.mejoraRelativa > 0 ? 'green' : 'red'}
         />
         <MetricCard
@@ -161,8 +161,8 @@ function ComparativaPanel({
       ganador: ganadorMenor(resultadoSA.costoFinal, resultadoALNS.costoFinal),
     },
     {
-      criterio: 'Mejora',
-      descripcion: 'Mayor reduccion porcentual respecto al costo inicial.',
+      criterio: 'Mejora Agregada',
+      descripcion: 'Reduccion porcentual global respecto al costo inicial acumulado.',
       sa: `${resultadoSA.mejoraRelativa.toFixed(1)}%`,
       alns: `${resultadoALNS.mejoraRelativa.toFixed(1)}%`,
       diferencia: formatDiferencia(resultadoSA.mejoraRelativa - resultadoALNS.mejoraRelativa, ' pp'),

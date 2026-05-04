@@ -21,7 +21,7 @@ export async function ejecutarSimulacion(
   fechaInicio?: string,  // formato YYYYMMDD, opcional
   fechaFin?: string,     // formato YYYYMMDD, opcional
   onProgress?: (job: SimulacionJob) => void
-): Promise<RutaResponse> {
+): Promise<RutaResponse[]> {
   const started = await iniciarSimulacion(
     aeropuertosFile,
     vuelosFile,
@@ -81,14 +81,14 @@ export async function obtenerEstadoSimulacion(jobId: string): Promise<Simulacion
 async function esperarResultadoSimulacion(
   jobId: string,
   onProgress?: (job: SimulacionJob) => void
-): Promise<RutaResponse> {
+): Promise<RutaResponse[]> {
   while (true) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     const job = await obtenerEstadoSimulacion(jobId);
     onProgress?.(job);
 
-    if (job.status === 'DONE' && job.result) {
-      return job.result;
+    if (job.status === 'DONE' && job.chunks) {
+      return job.chunks;
     }
 
     if (job.status === 'ERROR') {

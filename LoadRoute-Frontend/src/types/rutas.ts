@@ -26,6 +26,8 @@ export interface TramoDTO {
   horaLlegadaLocal: string;
   salidaMinutosGMT: number;
   llegadaMinutosGMT: number;
+  /** Días desde la fecha de inicio del rango. Ubica el vuelo en el timeline global. */
+  diaOffset: number;
 }
 
 export interface RutaMuestra {
@@ -48,6 +50,7 @@ export interface ResultadoAlgoritmo {
   totalEnvios: number;
   rutasMuestra: RutaMuestra[];
   mensajeColapso?: string;
+  vuelosCanceladosIds?: number[];
 }
 
 export interface RutaResponse {
@@ -55,10 +58,15 @@ export interface RutaResponse {
   resultadoSA: ResultadoAlgoritmo | null;
   resultadoALNS: ResultadoAlgoritmo | null;
   aeropuertos: AeropuertoDTO[];
+  vuelosMaestros?: TramoDTO[];
   totalVuelos: number;
   totalEnviosCargados: number;
   fechaInicio?: string;
   fechaFin?: string;
+  
+  // Custom frontend arrays mapped from chunks
+  cancelacionesPorDiaSA?: number[][];
+  cancelacionesPorDiaALNS?: number[][];
 }
 
 export interface SimulacionJob {
@@ -66,6 +74,6 @@ export interface SimulacionJob {
   status: 'PENDING' | 'RUNNING' | 'DONE' | 'ERROR';
   progress: number;
   message: string;
-  result?: RutaResponse;
+  chunks?: RutaResponse[];
   error?: string;
 }

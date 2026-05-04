@@ -1,6 +1,8 @@
 package com.loadroute.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.ArrayList;
+import java.util.List;
 
 public class SimulacionJobDTO {
 
@@ -16,8 +18,8 @@ public class SimulacionJobDTO {
     @JsonProperty("message")
     private String message;
 
-    @JsonProperty("result")
-    private RutaResponseDTO result;
+    @JsonProperty("chunks")
+    private List<RutaResponseDTO> chunks = new ArrayList<>();
 
     @JsonProperty("error")
     private String error;
@@ -43,16 +45,17 @@ public class SimulacionJobDTO {
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 
-    public RutaResponseDTO getResult() { return result; }
-    public void setResult(RutaResponseDTO result) { this.result = result; }
+    public List<RutaResponseDTO> getChunks() { return chunks; }
+    public void setChunks(List<RutaResponseDTO> chunks) { this.chunks = chunks; }
+    public void addChunk(RutaResponseDTO chunk) { this.chunks.add(chunk); }
 
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
 
     public SimulacionJobDTO copy() {
         SimulacionJobDTO dto = new SimulacionJobDTO(jobId, status, progress, message);
-        dto.setResult(result);
         dto.setError(error);
+        dto.setChunks(new ArrayList<>(chunks));
         return dto;
     }
 }
