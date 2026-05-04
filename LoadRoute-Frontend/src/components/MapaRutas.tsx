@@ -64,11 +64,20 @@ const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[] }> = ({ aeropuertos
 
 // Iconos de avión según semáforo
 function crearIconoAvion(color: string, angle: number): L.DivIcon {
+  const rot = angle - 45;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32"
+         style="transform: rotate(${rot}deg); filter: drop-shadow(0px 2px 2px rgba(0,0,0,0.5)); pointer-events: auto; cursor: pointer;">
+      <!-- Avioncito simple centrado en 32x32 -->
+      <path d="M25,20V18L17,13V7.5C17,6.67 16.33,6 15.5,6C14.67,6 14,6.67 14,7.5V13L6,18V20L14,17.5V23L12,24.5V26L15.5,25L19,26V24.5L17,23V17.5L25,20Z"
+            fill="${color}" stroke="#fff" stroke-width="1"/>
+    </svg>
+  `;
   return L.divIcon({
-    className: '',
-    html: `<div style="color:${color};font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));transform:rotate(${angle - 45}deg);line-height:20px;width:20px;height:20px;text-align:center;">✈</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    html: svg,
+    className: 'plane-marker',
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 }
 
@@ -224,7 +233,7 @@ export default function MapaRutas({
               key={`plane-sa-${t.vueloId}`} 
               position={[lat, lon]} 
               icon={crearIconoAvion(cColor, angle)}
-              eventHandlers={{ click: () => onSelectVuelo(t) }}
+              eventHandlers={{ mousedown: () => onSelectVuelo(t), click: () => onSelectVuelo(t) }}
             />
           );
         })}
@@ -239,7 +248,7 @@ export default function MapaRutas({
               key={`plane-alns-${t.vueloId}`} 
               position={[lat, lon]} 
               icon={crearIconoAvion(cColor, angle)}
-              eventHandlers={{ click: () => onSelectVuelo(t) }}
+              eventHandlers={{ mousedown: () => onSelectVuelo(t), click: () => onSelectVuelo(t) }}
             />
           );
         })}

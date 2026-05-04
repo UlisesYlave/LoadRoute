@@ -1,3 +1,4 @@
+import React, { useState, useRef, useEffect } from 'react';
 import { RutaMuestra, TramoDTO } from '@/types/rutas';
 
 interface ModalVueloProps {
@@ -7,6 +8,17 @@ interface ModalVueloProps {
 }
 
 export default function ModalVuelo({ vuelo, rutasActivas, onClose }: ModalVueloProps) {
+  const [position, setPosition] = useState({ x: 20, y: 80 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    // Posicionar el modal a la derecha por defecto al abrir
+    if (typeof window !== 'undefined') {
+      setPosition({ x: Math.max(20, window.innerWidth - 420), y: 80 });
+    }
+  }, [vuelo?.vueloId]);
+
   if (!vuelo) return null;
 
   // Calcular ocupación actual 
@@ -16,12 +28,44 @@ export default function ModalVuelo({ vuelo, rutasActivas, onClose }: ModalVueloP
 
   const porcentaje = Math.min((cargaActual / Math.max(vuelo.capacidad, 1)) * 100, 100).toFixed(1);
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Solo permitir arrastrar si se hace clic en el área del header (evitar botones)
+    if ((e.target as HTMLElement).closest('button')) return;
+    
+    setIsDragging(true);
+    dragStart.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragStart.current.x,
+        y: e.clientY - dragStart.current.y
+      });
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+  };
+
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#0f1f3d] border border-slate-700 rounded-xl shadow-2xl w-full max-w-sm animate-in fade-in zoom-in duration-200">
-        
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between bg-black/20 rounded-t-xl">
+    <div
+      className="fixed z-[10000] bg-[#0f1f3d]/95 backdrop-blur-md border border-slate-700 shadow-2xl w-full max-w-sm rounded-xl overflow-hidden animate-in fade-in zoom-in duration-200"
+      style={{ left: position.x, top: position.y, touchAction: 'none' }}
+    >
+        {/* Header Draggable */}
+        <div 
+          className="px-5 py-4 border-b border-slate-700/50 flex items-center justify-between bg-black/40 cursor-move select-none"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+        >
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
               <span className="text-xl">✈️</span>
@@ -93,9 +137,7 @@ export default function ModalVuelo({ vuelo, rutasActivas, onClose }: ModalVueloP
             <span className="text-blue-400">ℹ️</span>
             Este avión se encuentra actualmente prestando servicio logístico animado.
           </div>
-
         </div>
-      </div>
     </div>
   );
 }

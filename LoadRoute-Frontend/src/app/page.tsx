@@ -243,7 +243,10 @@ export default function Home() {
       timerRef.current = setInterval(() => {
         setPlaybackSeconds(p => p + 0.05);
         setSimTiempoMinutos(prev => {
-          const next = prev + 3;
+          // Aumento de 0.28 minutos simulados por cada 50ms de tiempo real.
+          // Esto equivale a ~5.6 minutos simulados por segundo real.
+          // 7 días = 10080 minutos simulados -> 10080 / 5.6 = 1800 segundos reales (30 minutos)
+          const next = prev + 0.28;
           if (next >= 1440) {
             if (maxSimDia !== null && simDia >= maxSimDia) {
               setIsPlaying(false);
