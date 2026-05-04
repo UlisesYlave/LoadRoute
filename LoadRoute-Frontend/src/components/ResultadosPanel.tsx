@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { ResultadoAlgoritmo } from '@/types/rutas';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ResultadoAlgoritmo, AeropuertoDTO } from '@/types/rutas';
 
 interface ResultadosPanelProps {
   resultadoSA: ResultadoAlgoritmo | null;
@@ -9,6 +9,21 @@ interface ResultadosPanelProps {
   escenario: number;
   totalVuelos: number;
   totalEnvios: number;
+  aeropuertos: AeropuertoDTO[];
+  fechaInicioRaw: string;
+}
+
+function getFechaLocal(minutos: number, fechaInicioRaw: string): string {
+    if (!fechaInicioRaw || fechaInicioRaw.length < 8) return '';
+    const y = parseInt(fechaInicioRaw.slice(0, 4));
+    const m = parseInt(fechaInicioRaw.slice(4, 6)) - 1;
+    const d = parseInt(fechaInicioRaw.slice(6, 8));
+    const date = new Date(y, m, d);
+    date.setMinutes(date.getMinutes() + minutos);
+    const yy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yy}-${mm}-${dd}`;
 }
 
 type GanadorComparativa = 'SA' | 'ALNS' | 'Empate';
@@ -51,10 +66,37 @@ function MetricCard({
   );
 }
 
-function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue' | 'green' }) {
+function AlgoritmoBloque({ res, color, aeropuertos, fechaInicioRaw }: { res: ResultadoAlgoritmo; color: 'blue' | 'green', aeropuertos: AeropuertoDTO[], fechaInicioRaw: string }) {
   const borderColor = color === 'blue' ? 'border-blue-500/20' : 'border-emerald-500/20';
   const headerBg = color === 'blue' ? 'bg-blue-500/10' : 'bg-emerald-500/10';
   const titleColor = color === 'blue' ? 'text-blue-400' : 'text-emerald-400';
+
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [filtroOrigen, setFiltroOrigen] = useState('');
+  const [filtroDestino, setFiltroDestino] = useState('');
+  const [filtroFecha, setFiltroFecha] = useState('');
+  const ITEMS_POR_PAGINA = 100;
+
+  const rutasFiltradas = useMemo(() => {
+    let result = res.rutasMuestra || [];
+    if (filtroOrigen) {
+      result = result.filter(r => r.origen === filtroOrigen);
+    }
+    if (filtroDestino) {
+      result = result.filter(r => r.destino === filtroDestino);
+    }
+    if (filtroFecha) {
+      result = result.filter(r => getFechaLocal(r.recepcionAbsMinutos, fechaInicioRaw) === filtroFecha);
+    }
+    return result;
+  }, [res.rutasMuestra, filtroOrigen, filtroDestino, filtroFecha, fechaInicioRaw]);
+
+  const totalPaginas = Math.max(1, Math.ceil(rutasFiltradas.length / ITEMS_POR_PAGINA));
+  const rutasPaginadas = rutasFiltradas.slice((paginaActual - 1) * ITEMS_POR_PAGINA, paginaActual * ITEMS_POR_PAGINA);
+
+  useEffect(() => {
+    if (paginaActual > totalPaginas) setPaginaActual(1);
+  }, [totalPaginas, paginaActual]);
 
   return (
     <div className={`rounded-lg border ${borderColor} overflow-hidden`}>
@@ -91,13 +133,37 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
       </div>
 
       {res.rutasMuestra && res.rutasMuestra.length > 0 && (
-        <div className="border-t border-slate-700/50">
-          <div className="px-4 py-2 bg-slate-800/30">
+        <div className="border-t border-slate-700/50 flex flex-col">
+          <div className="px-4 py-2 bg-slate-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-              Muestra de Rutas ({res.rutasMuestra.length})
+              Muestra de Rutas ({rutasFiltradas.length})
             </p>
+            <div className="flex gap-2 text-xs flex-wrap justify-end">
+              <select 
+                value={filtroOrigen}
+                onChange={e => setFiltroOrigen(e.target.value)}
+                className="bg-slate-800/60 border border-slate-700/60 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500/50 w-28"
+              >
+                <option value="">Origen</option>
+                {aeropuertos.map(a => <option key={a.codigo} value={a.codigo}>{a.codigo}</option>)}
+              </select>
+              <select 
+                value={filtroDestino}
+                onChange={e => setFiltroDestino(e.target.value)}
+                className="bg-slate-800/60 border border-slate-700/60 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500/50 w-28"
+              >
+                <option value="">Destino</option>
+                {aeropuertos.map(a => <option key={a.codigo} value={a.codigo}>{a.codigo}</option>)}
+              </select>
+              <input 
+                type="date"
+                value={filtroFecha}
+                onChange={e => setFiltroFecha(e.target.value)}
+                className="bg-slate-800/60 border border-slate-700/60 rounded px-2 py-1.5 text-slate-200 focus:outline-none focus:border-blue-500/50 [color-scheme:dark] w-32"
+              />
+            </div>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[250px]">
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-700/40 text-slate-400">
@@ -108,7 +174,7 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
                 </tr>
               </thead>
               <tbody>
-                {res.rutasMuestra.map((ruta, i) => (
+                {rutasPaginadas.map((ruta, i) => (
                   <tr key={i} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                     <td className="px-4 py-2 font-mono text-slate-300">{ruta.envioId.slice(-5)}</td>
                     <td className="px-4 py-2">
@@ -133,9 +199,35 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
                     </td>
                   </tr>
                 ))}
+                {rutasPaginadas.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-8 text-center text-[10px] text-slate-500">
+                      No se encontraron rutas con los filtros aplicados
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
+          {totalPaginas > 1 && (
+            <div className="px-4 py-2 bg-slate-800/30 border-t border-slate-700/40 flex items-center justify-between text-xs text-slate-400">
+              <button 
+                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="px-2 py-1 rounded bg-slate-700/50 hover:bg-slate-600 disabled:opacity-50 transition-colors"
+              >
+                Anterior
+              </button>
+              <span>Página {paginaActual} de {totalPaginas}</span>
+              <button 
+                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="px-2 py-1 rounded bg-slate-700/50 hover:bg-slate-600 disabled:opacity-50 transition-colors"
+              >
+                Siguiente
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -264,6 +356,8 @@ export default function ResultadosPanel({
   escenario,
   totalVuelos,
   totalEnvios,
+  aeropuertos,
+  fechaInicioRaw,
 }: ResultadosPanelProps) {
   if (!resultadoSA && !resultadoALNS) return null;
 
@@ -281,9 +375,9 @@ export default function ResultadosPanel({
         <ComparativaPanel resultadoSA={resultadoSA} resultadoALNS={resultadoALNS} />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {resultadoSA && <AlgoritmoBloque res={resultadoSA} color="blue" />}
-        {resultadoALNS && <AlgoritmoBloque res={resultadoALNS} color="green" />}
+      <div className={`grid gap-4 ${resultadoSA && resultadoALNS ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+        {resultadoSA && <AlgoritmoBloque res={resultadoSA} color="blue" aeropuertos={aeropuertos} fechaInicioRaw={fechaInicioRaw} />}
+        {resultadoALNS && <AlgoritmoBloque res={resultadoALNS} color="green" aeropuertos={aeropuertos} fechaInicioRaw={fechaInicioRaw} />}
       </div>
     </div>
   );

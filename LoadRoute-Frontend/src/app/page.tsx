@@ -200,6 +200,7 @@ export default function Home() {
   const [error,           setError]           = useState('');
   const [backendActivo,   setBackendActivo]   = useState<boolean | null>(null);
   const [cargando,        setCargando]        = useState(false);
+  const [logMsg,          setLogMsg]          = useState<string | null>(null);
 
   // Modals
   const [envioModal,  setEnvioModal]  = useState<RutaMuestra | null>(null);
@@ -210,13 +211,20 @@ export default function Home() {
   const [simTiempoMinutos, setSimTiempoMinutos] = useState(0);
   const [simDia,           setSimDia]           = useState(0);
   const [isPlaying,        setIsPlaying]        = useState(false);
+  const [playbackSeconds,  setPlaybackSeconds]  = useState(0);
   const [fechaInicioRaw,   setFechaInicioRaw]   = useState(''); // YYYYMMDD
   const [fechaFinRaw,      setFechaFinRaw]      = useState(''); // YYYYMMDD
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const formatTiempoPlayback = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
   // Layout
-  const [activeTab,        setActiveTab]        = useState<TabId | null>('pedidos');
-  const [panelResultOpen,  setPanelResultOpen]  = useState(true);
+  const [activeTab,        setActiveTab]        = useState<TabId | null>(null);
+  const [panelResultOpen,  setPanelResultOpen]  = useState(false);
   const [modoMapa,         setModoMapa]         = useState<ModoMapa>('alns');
 
   // Umbrales dinámicos de capacidad
@@ -233,6 +241,7 @@ export default function Home() {
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
+        setPlaybackSeconds(p => p + 0.05);
         setSimTiempoMinutos(prev => {
           const next = prev + 3;
           if (next >= 1440) {
@@ -257,6 +266,7 @@ export default function Home() {
     setIsPlaying(false);
     setSimTiempoMinutos(0);
     setSimDia(0);
+    setPlaybackSeconds(0);
     setFechaInicioRaw('');
     setFechaFinRaw('');
   };
@@ -265,6 +275,7 @@ export default function Home() {
     setIsPlaying(false);
     setSimTiempoMinutos(0);
     setSimDia(0);
+    setPlaybackSeconds(0);
   };
 
   const handleTabClick = useCallback((id: TabId) => {
@@ -296,12 +307,38 @@ export default function Home() {
           </div>
           <ControlPanel
             onResultado={(res) => {
-              setResultado(res);
-              setSimTiempoMinutos(0);
-              setSimDia(0);
+              setResultado(prev => {
+                if (!prev) {
+                  setSimTiempoMinutos(0);
+                  setSimDia(0);
+                  setPlaybackSeconds(0);
+                }
+                return res;
+              });
               setFechaInicioRaw(res.fechaInicio || fechaInicioRaw);
               setFechaFinRaw(res.fechaFin || '');
               setIsPlaying(true);
+              setActiveTab(null);
+              setPanelResultOpen(false);
+            }}
+            onPartialResult={(partialRes) => {
+              setResultado(prev => {
+                if (!prev) {
+                  setSimTiempoMinutos(0);
+                  setSimDia(0);
+                  setPlaybackSeconds(0);
+                  setFechaInicioRaw(partialRes.fechaInicio || fechaInicioRaw);
+                  setFechaFinRaw(partialRes.fechaFin || '');
+                  setIsPlaying(true);
+                  setActiveTab(null);
+                  setPanelResultOpen(false);
+                }
+                return partialRes;
+              });
+              const msg = `Bloque de 8 horas recibido (Iteraciones: ${partialRes.resultadoSA?.iteraciones || 0})`;
+              console.log("✈️ [Rolling Horizon]", msg);
+              setLogMsg(msg);
+              setTimeout(() => setLogMsg(null), 4000);
             }}
             onError={setError}
             onCargando={setCargando}
@@ -420,6 +457,8 @@ export default function Home() {
                   activeTab={activeTab}
                   onSelectEnvio={setEnvioModal}
                   onSelectAeropuerto={setAeroModal}
+                  totalEnviosGlobal={resultado.totalEnviosCargados}
+                  fechaInicioRaw={fechaInicioRaw}
                 />
               )}
               {activeTab === 'simulacion' && (
@@ -449,6 +488,7 @@ export default function Home() {
           <div className="flex-1 relative min-h-0">
             <MapaRutas
               resultado={resultado}
+              simDia={simDia}
               simTiempoMinutos={simTiempoMinutos}
               onSelectVuelo={setVueloModal}
               selectedVuelo={vueloModal}
@@ -457,6 +497,40 @@ export default function Home() {
               modoMapa={modoMapa}
               onModoMapa={setModoMapa}
             />
+
+            {/* Overlay de Tiempo en el Mapa */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-[#0c1a30]/80 backdrop-blur-md border border-slate-700/50 rounded-xl p-3 shadow-lg pointer-events-none flex gap-6 items-center">
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                  Tiempo Simulado
+                </p>
+                <div className="flex items-baseline justify-end gap-2">
+                  <span className="text-xs text-slate-300 capitalize">
+                    {formatFechaSimulacion(fechaInicioRaw, simDia)}
+                  </span>
+                  <span className="text-xl font-mono text-emerald-400 font-bold">
+                    {formatoHora(simTiempoMinutos)}
+                  </span>
+                </div>
+              </div>
+              <div className="w-px h-8 bg-slate-700/50"></div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                  Tiempo Reproducción
+                </p>
+                <p className="text-xl font-mono text-blue-400 font-bold">
+                  {formatTiempoPlayback(playbackSeconds)}
+                </p>
+              </div>
+            </div>
+
+            {/* Overlay de Logs Temporales */}
+            {logMsg && (
+              <div className="absolute bottom-6 right-6 z-[600] bg-emerald-600/90 text-white px-4 py-3 rounded-lg shadow-xl shadow-emerald-900/50 backdrop-blur border border-emerald-400/50 flex items-center gap-2 fade-in-up">
+                <span className="text-xl">✅</span>
+                <span className="font-medium text-sm">{logMsg}</span>
+              </div>
+            )}
 
             {/* Botón toggle panel de resultados */}
             <button
@@ -474,10 +548,10 @@ export default function Home() {
 
           {/* ── PANEL RESULTADOS (derecha, colapsable) ── */}
           <div
-            className="overflow-hidden shrink-0 border-l border-slate-700/50 bg-[#0c1a30] flex flex-col"
-            style={{ width: panelResultOpen ? 'min(820px, 52vw)' : '0px', transition: 'width 0.25s ease' }}
+            className={`overflow-hidden shrink-0 border-slate-700/50 bg-[#0c1a30] flex flex-col transition-all duration-300 ease-in-out
+                       ${panelResultOpen ? 'w-[720px] max-w-[55vw] border-l' : 'w-0 border-l-0'}`}
           >
-            <div style={{ width: 'min(820px, 52vw)' }} className="h-full overflow-y-auto custom-scrollbar">
+            <div className="w-[720px] max-w-[55vw] h-full overflow-y-auto custom-scrollbar">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -490,6 +564,8 @@ export default function Home() {
                   escenario={resultado.escenario}
                   totalVuelos={resultado.totalVuelos}
                   totalEnvios={resultado.totalEnviosCargados}
+                  aeropuertos={resultado.aeropuertos}
+                  fechaInicioRaw={fechaInicioRaw}
                 />
               </div>
             </div>

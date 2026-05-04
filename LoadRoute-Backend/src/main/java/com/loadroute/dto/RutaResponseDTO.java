@@ -150,6 +150,9 @@ public class RutaResponseDTO {
         @JsonProperty("tramos")
         private List<TramoDTO> tramos;
 
+        @JsonProperty("recepcionAbsMinutos")
+        private long recepcionAbsMinutos;
+
         public RutaMuestra() {}
 
         public String getEnvioId() { return envioId; }
@@ -169,6 +172,9 @@ public class RutaResponseDTO {
 
         public List<TramoDTO> getTramos() { return tramos; }
         public void setTramos(List<TramoDTO> tramos) { this.tramos = tramos; }
+
+        public long getRecepcionAbsMinutos() { return recepcionAbsMinutos; }
+        public void setRecepcionAbsMinutos(long recepcionAbsMinutos) { this.recepcionAbsMinutos = recepcionAbsMinutos; }
     }
 
     public static class TramoDTO {
@@ -208,6 +214,12 @@ public class RutaResponseDTO {
         @JsonProperty("llegadaMinutosGMT")
         private int llegadaMinutosGMT;
 
+        @JsonProperty("salidaAbsMinutos")
+        private long salidaAbsMinutos;
+
+        @JsonProperty("llegadaAbsMinutos")
+        private long llegadaAbsMinutos;
+
         public TramoDTO() {}
 
         public String getOrigen() { return origen; }
@@ -245,6 +257,12 @@ public class RutaResponseDTO {
 
         public int getLlegadaMinutosGMT() { return llegadaMinutosGMT; }
         public void setLlegadaMinutosGMT(int llegadaMinutosGMT) { this.llegadaMinutosGMT = llegadaMinutosGMT; }
+
+        public long getSalidaAbsMinutos() { return salidaAbsMinutos; }
+        public void setSalidaAbsMinutos(long salidaAbsMinutos) { this.salidaAbsMinutos = salidaAbsMinutos; }
+
+        public long getLlegadaAbsMinutos() { return llegadaAbsMinutos; }
+        public void setLlegadaAbsMinutos(long llegadaAbsMinutos) { this.llegadaAbsMinutos = llegadaAbsMinutos; }
     }
 
     public static class AeropuertoDTO {

@@ -15,8 +15,8 @@ import java.util.*;
 public class SolucionEstado {
 
     public static double PESO_SLA                   = 10_000.0;
-    public static double PESO_CAPACIDAD_VUELO       = 5_000.0;
-    public static double PESO_CAPACIDAD_AEROPUERTO  = 10_000.0;
+    public static double PESO_CAPACIDAD_VUELO       = 1_000_000.0;
+    public static double PESO_CAPACIDAD_AEROPUERTO  = 1_000_000.0;
 
     private final Map<String, List<Vuelo>> asignaciones;
     private final Map<String, Envio> envios;
@@ -41,7 +41,7 @@ public class SolucionEstado {
 
     public double evaluarCostoTotal() {
         double costo = 0.0;
-        Map<Integer, Integer> cargaPorVuelo = new HashMap<>();
+        Map<String, Integer> cargaPorVueloFecha = new HashMap<>();
         Map<String, List<OccupancyEvent>> eventosPorAero = new HashMap<>();
 
         for (Map.Entry<String, List<Vuelo>> entry : asignaciones.entrySet()) {
@@ -69,7 +69,8 @@ public class SolucionEstado {
             eventosPorAero.computeIfAbsent(codOrig, k -> new ArrayList<>())
                           .add(new OccupancyEvent(salida1, -maletas));
 
-            cargaPorVuelo.merge(v1.getId(), maletas, Integer::sum);
+            String key1 = v1.getId() + "_" + salida1.toLocalDate().toString();
+            cargaPorVueloFecha.merge(key1, maletas, Integer::sum);
             t = v1.getLlegadaGMT(salida1);
 
             // 2. Conexiones intermedias
@@ -83,7 +84,8 @@ public class SolucionEstado {
                 eventosPorAero.computeIfAbsent(codAero, k -> new ArrayList<>())
                               .add(new OccupancyEvent(salidaK, -maletas));
 
-                cargaPorVuelo.merge(vk.getId(), maletas, Integer::sum);
+                String keyK = vk.getId() + "_" + salidaK.toLocalDate().toString();
+                cargaPorVueloFecha.merge(keyK, maletas, Integer::sum);
                 t = vk.getLlegadaGMT(salidaK);
             }
 
@@ -100,10 +102,15 @@ public class SolucionEstado {
         }
 
         // Penalización: Capacidad de Vuelos
-        for (Map.Entry<Integer, Integer> e : cargaPorVuelo.entrySet()) {
-            Vuelo v = buscarVueloPorId(e.getKey());
+        for (Map.Entry<String, Integer> e : cargaPorVueloFecha.entrySet()) {
+            String[] parts = e.getKey().split("_");
+            int vueloId = Integer.parseInt(parts[0]);
+            java.time.LocalDate fecha = java.time.LocalDate.parse(parts[1]);
+            Vuelo v = buscarVueloPorId(vueloId);
             if (v != null) {
-                int exceso = e.getValue() - v.getCapacidadMax();
+                // La carga de este Vuelo es: carga ya comprometida (de otros chunks) + carga de este chunk
+                int cargaTotal = v.getCapacidadOcupada(fecha) + e.getValue();
+                int exceso = cargaTotal - v.getCapacidadMax();
                 if (exceso > 0) {
                     costo += PESO_CAPACIDAD_VUELO * exceso;
                 }
@@ -135,20 +142,62 @@ public class SolucionEstado {
     }
 
     public boolean esFactible() {
-        // En este modelo permitimos excesos ligeros pero los penalizamos fuertemente.
-        // Aquí verificamos factibilidad básica: rutas asignadas y capacidad crítica.
-        Map<Integer, Integer> cargaPorVuelo = new HashMap<>();
+        Map<String, Integer> cargaPorVueloFecha = new HashMap<>();
+        Map<String, List<OccupancyEvent>> eventosPorAero = new HashMap<>();
+
         for (Map.Entry<String, List<Vuelo>> entry : asignaciones.entrySet()) {
-            if (entry.getValue().isEmpty()) return false;
+            if (entry.getValue().isEmpty()) return false; // Envío sin ruta no es factible
+
             Envio envio = envios.get(entry.getKey());
+            int maletas = envio.getCantidadMaletas();
+            LocalDateTime t = envio.getRecepcionGMT();
+            
+            String codOrig = envio.getOrigen().getCodigo();
+            eventosPorAero.computeIfAbsent(codOrig, k -> new ArrayList<>()).add(new OccupancyEvent(t, maletas));
+
             for (Vuelo v : entry.getValue()) {
-                cargaPorVuelo.merge(v.getId(), envio.getCantidadMaletas(), Integer::sum);
+                LocalDateTime salida = v.getProximaSalidaGMT(t, 30);
+                
+                eventosPorAero.computeIfAbsent(v.getOrigen().getCodigo(), k -> new ArrayList<>())
+                              .add(new OccupancyEvent(salida, -maletas));
+
+                String key = v.getId() + "_" + salida.toLocalDate().toString();
+                cargaPorVueloFecha.merge(key, maletas, Integer::sum);
+                t = v.getLlegadaGMT(salida);
+
+                eventosPorAero.computeIfAbsent(v.getDestino().getCodigo(), k -> new ArrayList<>())
+                              .add(new OccupancyEvent(t, maletas));
             }
         }
-        // Vuelos al límite (se permite 10% de gracia para la metaheurística, pero se penaliza arriba)
-        for (Map.Entry<Integer, Integer> e : cargaPorVuelo.entrySet()) {
-            Vuelo v = buscarVueloPorId(e.getKey());
-            if (v != null && e.getValue() > v.getCapacidadMax() * 1.1) return false;
+
+        // Restricción Estricta: Capacidad de Vuelos
+        for (Map.Entry<String, Integer> e : cargaPorVueloFecha.entrySet()) {
+            String[] parts = e.getKey().split("_");
+            int vueloId = Integer.parseInt(parts[0]);
+            java.time.LocalDate fecha = java.time.LocalDate.parse(parts[1]);
+            Vuelo v = buscarVueloPorId(vueloId);
+            if (v != null) {
+                int cargaTotal = v.getCapacidadOcupada(fecha) + e.getValue();
+                if (cargaTotal > v.getCapacidadMax()) {
+                    return false; 
+                }
+            }
+        }
+
+        // Restricción Estricta: Capacidad de Aeropuertos
+        for (Map.Entry<String, List<OccupancyEvent>> entry : eventosPorAero.entrySet()) {
+            String codAero = entry.getKey();
+            List<OccupancyEvent> eventos = entry.getValue();
+            eventos.sort(Comparator.comparing(ev -> ev.tiempo));
+
+            int maxCapAero = buscarCapacidadAero(codAero);
+            int ocupacionActual = 0;
+            for (OccupancyEvent ev : eventos) {
+                ocupacionActual += ev.delta;
+                if (ocupacionActual > maxCapAero) {
+                    return false; 
+                }
+            }
         }
         return true;
     }

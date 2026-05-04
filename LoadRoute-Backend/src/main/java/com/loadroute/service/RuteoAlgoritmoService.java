@@ -49,7 +49,7 @@ public class RuteoAlgoritmoService {
 
     @FunctionalInterface
     public interface ProgressReporter {
-        void update(int progress, String message);
+        void update(int progress, String message, RutaResponseDTO partialResult);
     }
 
     /** Formato esperado para fechaInicio y fechaFin: YYYYMMDD */
@@ -128,10 +128,24 @@ public class RuteoAlgoritmoService {
 
         // ── 5. Armar respuesta base ───────────────────────────────────────────
         RutaResponseDTO response = new RutaResponseDTO();
+        
+        LocalDateTime refInicio = parsearFechaInicio(fechaInicio);
+        if (fechaInicio == null && !envios.isEmpty()) {
+            LocalDateTime minGMT = null;
+            for (Envio e : envios.values()) {
+                if (minGMT == null || e.getRecepcionGMT().isBefore(minGMT)) {
+                    minGMT = e.getRecepcionGMT();
+                }
+            }
+            if (minGMT != null) {
+                refInicio = minGMT.toLocalDate().atStartOfDay();
+            }
+        }
+        
         response.setEscenario(escenario);
         response.setTotalVuelos(red.getTotalVuelos());
         response.setTotalEnviosCargados(envios.size());
-        response.setFechaInicio(fechaInicio);
+        response.setFechaInicio(refInicio.format(FMT_FECHA));
         response.setFechaFin(fechaFin);
         response.setAeropuertos(
             aeropuertos.values().stream().map(this::mapAeropuertoDTO).collect(Collectors.toList())
@@ -139,10 +153,11 @@ public class RuteoAlgoritmoService {
 
         // ── 6. Ejecutar escenario ─────────────────────────────────────────────
         switch (escenario) {
-            case 1 -> ejecutarEscenario1(envios, red, response, progress);
-            case 2 -> ejecutarEscenario2(envios, red, response, progress);
-            case 3 -> ejecutarEscenario3(envios, vuelos, red, response, progress);
-            default -> ejecutarEscenario1(envios, red, response, progress);
+            case 1 -> ejecutarEscenario1(envios, red, response, progress, refInicio);
+            case 2 -> ejecutarEscenario2(envios, red, response, progress, refInicio);
+            case 3 -> ejecutarEscenario3(envios, vuelos, red, response, progress, refInicio);
+            case 4 -> ejecutarEscenario4(envios, red, response, progress, refInicio);
+            default -> ejecutarEscenario1(envios, red, response, progress, refInicio);
         }
 
         report(progress, 98, "Preparando respuesta para el dashboard...");
@@ -150,7 +165,11 @@ public class RuteoAlgoritmoService {
     }
 
     private void report(ProgressReporter progress, int pct, String message) {
-        if (progress != null) progress.update(pct, message);
+        report(progress, pct, message, null);
+    }
+
+    private void report(ProgressReporter progress, int pct, String message, RutaResponseDTO partialResult) {
+        if (progress != null) progress.update(pct, message, partialResult);
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -232,7 +251,7 @@ public class RuteoAlgoritmoService {
     // ══════════════════════════════════════════════════════════════════════════
 
     private void ejecutarEscenario1(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response, ProgressReporter progress) {
+                                    RutaResponseDTO response, ProgressReporter progress, LocalDateTime refInicio) {
         int envioCount = envios.size();
         // Tiempo proporcional al tamaño: mínimo 1 min, máximo 90 min
         long tiempoMin = Math.min(90L, Math.max(1L, envioCount / 150L));
@@ -251,11 +270,11 @@ public class RuteoAlgoritmoService {
 
         response.setResultadoSA(buildResultado("Simulated Annealing",
                 sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), ms, sol, envios));
+                sa.getMejoraRelativa(), sa.getIteraciones(), ms, sol, envios, refInicio));
     }
 
     private void ejecutarEscenario2(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response, ProgressReporter progress) {
+                                    RutaResponseDTO response, ProgressReporter progress, LocalDateTime refInicio) {
         int envioCount = envios.size();
         long tiempoMin = Math.min(45L, Math.max(1L, envioCount / 150L));
 
@@ -273,7 +292,7 @@ public class RuteoAlgoritmoService {
 
         response.setResultadoSA(buildResultado("Simulated Annealing",
                 sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, envios));
+                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, envios, refInicio));
 
         ALNS alns = new ALNS(red)
                 .setMaxIteraciones(500)
@@ -288,11 +307,11 @@ public class RuteoAlgoritmoService {
 
         response.setResultadoALNS(buildResultado("ALNS",
                 alns.getCostoInicial(), alns.getCostoFinal(),
-                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, envios));
+                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, envios, refInicio));
     }
 
     private void ejecutarEscenario3(Map<String, Envio> envios, List<Vuelo> todosVuelos,
-                                    RedLogistica red, RutaResponseDTO response, ProgressReporter progress) {
+                                    RedLogistica red, RutaResponseDTO response, ProgressReporter progress, LocalDateTime refInicio) {
         int envioCount = envios.size();
         long tiempoMin = Math.min(30L, Math.max(1L, envioCount / 200L));
 
@@ -309,7 +328,7 @@ public class RuteoAlgoritmoService {
 
         response.setResultadoSA(buildResultado("SA (Día Normal)",
                 sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solBase, envios));
+                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solBase, envios, refInicio));
 
         // Bucle de colapso progresivo
         List<Vuelo> vuelosRestantes = new ArrayList<>(todosVuelos);
@@ -359,9 +378,113 @@ public class RuteoAlgoritmoService {
 
         ResultadoAlgoritmo resColapso = buildResultado("ALNS (Colapso)",
                 alns.getCostoInicial(), alns.getCostoFinal(),
-                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solBase, envios);
+                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solBase, envios, refInicio);
         resColapso.setMensajeColapso(mensajeColapso);
         response.setResultadoALNS(resColapso);
+    }
+
+    private void ejecutarEscenario4(Map<String, Envio> envios, RedLogistica red,
+                                    RutaResponseDTO response, ProgressReporter progress, LocalDateTime refInicio) {
+        report(progress, 40, "Preparando Rolling Horizon (tramos de 8h)...");
+
+        // 1. Ordenar envíos por fecha de recepción (LOCAL)
+        List<Envio> enviosOrdenados = new ArrayList<>(envios.values());
+        enviosOrdenados.sort(Comparator.comparing(Envio::getFechaHoraRecepcion));
+
+        if (enviosOrdenados.isEmpty()) return;
+
+        // 2. Dividir en bloques de 8 horas
+        LocalDateTime startT = enviosOrdenados.get(0).getFechaHoraRecepcion();
+        List<Map<String, Envio>> chunks = new ArrayList<>();
+        LocalDateTime currentChunkStart = startT;
+        LocalDateTime currentChunkEnd = startT.plusHours(8);
+
+        Map<String, Envio> currentChunk = new LinkedHashMap<>();
+        for (Envio e : enviosOrdenados) {
+            while (e.getFechaHoraRecepcion().isAfter(currentChunkEnd) || e.getFechaHoraRecepcion().isEqual(currentChunkEnd)) {
+                if (!currentChunk.isEmpty()) {
+                    chunks.add(currentChunk);
+                }
+                currentChunk = new LinkedHashMap<>();
+                currentChunkStart = currentChunkEnd;
+                currentChunkEnd = currentChunkStart.plusHours(8);
+            }
+            currentChunk.put(e.getId(), e);
+        }
+        if (!currentChunk.isEmpty()) {
+            chunks.add(currentChunk);
+        }
+
+        int totalChunks = chunks.size();
+        long t0 = System.currentTimeMillis();
+
+        SolucionEstado solucionGlobal = new SolucionEstado(envios);
+        int totalIteraciones = 0;
+
+        // 3. Iterar secuencialmente
+        for (int i = 0; i < totalChunks; i++) {
+            Map<String, Envio> chunkEnvios = chunks.get(i);
+            int pct = 40 + (int)((i / (double)totalChunks) * 50);
+            report(progress, pct, String.format("Procesando bloque %d de %d (%d envios)...", (i+1), totalChunks, chunkEnvios.size()));
+
+            // Tiempo proporcional al tamaño del chunk (ej: max 4 min)
+            long tiempoMin = Math.min(4L, Math.max(1L, chunkEnvios.size() / 150L));
+
+            SimulatedAnnealing sa = new SimulatedAnnealing(red)
+                    .setTemperaturaInicial(1_000.0)
+                    .setAlfa(0.995)
+                    .setTemperaturaMinima(1.0)
+                    .setTiempoMaxMinutos(tiempoMin);
+
+            SolucionEstado solChunk = sa.optimizar(chunkEnvios);
+            totalIteraciones += sa.getIteraciones();
+
+            // Comprometer capacidad y fusionar con solución global
+            for (Map.Entry<String, List<Vuelo>> entry : solChunk.getAsignaciones().entrySet()) {
+                String envioId = entry.getKey();
+                List<Vuelo> ruta = entry.getValue();
+
+                solucionGlobal.asignarRuta(envioId, ruta);
+
+                // Comprometer capacidad REAL en los objetos Vuelo
+                if (!ruta.isEmpty()) {
+                    Envio envio = envios.get(envioId);
+                    LocalDateTime t = envio.getRecepcionGMT();
+                    for (Vuelo v : ruta) {
+                        LocalDateTime salida = v.getProximaSalidaGMT(t, 30);
+                        v.reservar(salida.toLocalDate(), envio.getCantidadMaletas());
+                        t = v.getLlegadaGMT(salida);
+                    }
+                }
+            }
+
+            // Construir resultado parcial
+            double costoInicialParcial = new SolucionEstado(envios).evaluarCostoTotal();
+            double costoFinalParcial = solucionGlobal.evaluarCostoTotal();
+            double mejoraParcial = costoInicialParcial > 0 ? (costoInicialParcial - costoFinalParcial) / costoInicialParcial * 100.0 : 0.0;
+            
+            RutaResponseDTO partial = new RutaResponseDTO();
+            partial.setEscenario(response.getEscenario());
+            partial.setTotalVuelos(response.getTotalVuelos());
+            partial.setTotalEnviosCargados(response.getTotalEnviosCargados());
+            partial.setFechaInicio(response.getFechaInicio());
+            partial.setFechaFin(response.getFechaFin());
+            partial.setAeropuertos(response.getAeropuertos());
+            partial.setResultadoSA(buildResultado("Rolling Horizon (parcial)", costoInicialParcial, costoFinalParcial, mejoraParcial, totalIteraciones, System.currentTimeMillis() - t0, solucionGlobal, envios, refInicio));
+            
+            report(progress, Math.min(pct + 5, 90), String.format("Bloque %d de %d completado.", (i+1), totalChunks), partial);
+        }
+
+        long msTotal = System.currentTimeMillis() - t0;
+        report(progress, 92, "Rolling Horizon completado.");
+
+        double costoInicialGlobal = new SolucionEstado(envios).evaluarCostoTotal();
+        double costoFinalGlobal = solucionGlobal.evaluarCostoTotal();
+        double mejora = costoInicialGlobal > 0 ? (costoInicialGlobal - costoFinalGlobal) / costoInicialGlobal * 100.0 : 0.0;
+
+        response.setResultadoSA(buildResultado("Rolling Horizon (8h)",
+                costoInicialGlobal, costoFinalGlobal,
+                mejora, totalIteraciones, msTotal, solucionGlobal, envios, refInicio));
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -372,7 +495,8 @@ public class RuteoAlgoritmoService {
                                                double costoIni, double costoFin,
                                                double mejora, int iter, long ms,
                                                SolucionEstado sol,
-                                               Map<String, Envio> envios) {
+                                               Map<String, Envio> envios,
+                                               LocalDateTime refInicio) {
         ResultadoAlgoritmo r = new ResultadoAlgoritmo();
         r.setAlgoritmo(nombre);
         r.setCostoInicial(costoIni);
@@ -397,9 +521,14 @@ public class RuteoAlgoritmoService {
             rm.setDestino(envio.getDestino().getCodigo());
             rm.setMaletas(envio.getCantidadMaletas());
             rm.setSlaHoras(envio.getSlaHoras());
+            rm.setRecepcionAbsMinutos(java.time.temporal.ChronoUnit.MINUTES.between(refInicio, envio.getRecepcionGMT()));
 
             List<TramoDTO> tramos = new ArrayList<>();
+            LocalDateTime currentTime = envio.getRecepcionGMT();
             for (Vuelo v : e.getValue()) {
+                LocalDateTime salidaDate = v.getProximaSalidaGMT(currentTime, 30);
+                LocalDateTime llegadaDate = v.getLlegadaGMT(salidaDate);
+
                 TramoDTO t = new TramoDTO();
                 t.setOrigen(v.getOrigen().getCodigo());
                 t.setDestino(v.getDestino().getCodigo());
@@ -413,7 +542,11 @@ public class RuteoAlgoritmoService {
                 t.setHoraLlegadaLocal(v.getHoraLlegadaLocal().toString());
                 t.setSalidaMinutosGMT(v.getSalidaMinutosGMT());
                 t.setLlegadaMinutosGMT(v.getLlegadaMinutosGMT());
+                t.setSalidaAbsMinutos(java.time.temporal.ChronoUnit.MINUTES.between(refInicio, salidaDate));
+                t.setLlegadaAbsMinutos(java.time.temporal.ChronoUnit.MINUTES.between(refInicio, llegadaDate));
                 tramos.add(t);
+
+                currentTime = llegadaDate;
             }
             rm.setTramos(tramos);
             muestras.add(rm);

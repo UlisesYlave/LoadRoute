@@ -50,7 +50,7 @@ public class RuteoAsyncJobService {
         }
 
         executor.submit(() -> {
-            update(jobId, "RUNNING", 5, "Archivos recibidos. Iniciando simulacion...");
+            update(jobId, "RUNNING", 5, "Archivos recibidos. Iniciando simulacion...", null);
             try {
                 RutaResponseDTO result = ruteoService.ejecutarRuteo(
                         new ByteArrayInputStream(aeropuertosBytes),
@@ -59,7 +59,7 @@ public class RuteoAsyncJobService {
                         escenario,
                         fechaInicio,
                         fechaFin,
-                        (progress, message) -> update(jobId, "RUNNING", progress, message)
+                        (progress, message, partialResult) -> update(jobId, "RUNNING", progress, message, partialResult)
                 );
                 SimulacionJobDTO current = jobs.get(jobId);
                 current.setStatus("DONE");
@@ -83,12 +83,15 @@ public class RuteoAsyncJobService {
         return job != null ? job.copy() : null;
     }
 
-    private void update(String jobId, String status, int progress, String message) {
+    private void update(String jobId, String status, int progress, String message, RutaResponseDTO partialResult) {
         SimulacionJobDTO job = jobs.get(jobId);
         if (job == null) return;
         job.setStatus(status);
         job.setProgress(Math.max(0, Math.min(100, progress)));
         job.setMessage(message);
+        if (partialResult != null) {
+            job.setPartialResult(partialResult);
+        }
     }
 
     private static class ByteMultipartFile implements MultipartFile {

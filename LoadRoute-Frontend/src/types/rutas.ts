@@ -26,6 +26,8 @@ export interface TramoDTO {
   horaLlegadaLocal: string;
   salidaMinutosGMT: number;
   llegadaMinutosGMT: number;
+  salidaAbsMinutos: number;
+  llegadaAbsMinutos: number;
 }
 
 export interface RutaMuestra {
@@ -34,6 +36,7 @@ export interface RutaMuestra {
   destino: string;
   maletas: number;
   slaHoras: number;
+  recepcionAbsMinutos: number;
   tramos: TramoDTO[];
 }
 
@@ -67,5 +70,6 @@ export interface SimulacionJob {
   progress: number;
   message: string;
   result?: RutaResponse;
+  partialResult?: RutaResponse;
   error?: string;
 }

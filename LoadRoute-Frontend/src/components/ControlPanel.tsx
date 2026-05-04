@@ -6,6 +6,7 @@ import { RutaResponse, SimulacionJob } from '@/types/rutas';
 
 interface ControlPanelProps {
   onResultado: (resultado: RutaResponse) => void;
+  onPartialResult?: (resultado: RutaResponse) => void;
   onError: (error: string) => void;
   onCargando: (cargando: boolean) => void;
   onFechaInicio?: (fecha: string) => void; // Notifica la fecha elegida al padre
@@ -41,6 +42,14 @@ const ESCENARIOS = [
     icono: '🔄',
     color: 'amber',
   },
+  {
+    id: 4,
+    titulo: 'Rolling Horizon',
+    subtitulo: 'Planificación Continua — SA',
+    descripcion: 'Ejecución progresiva por ventanas de tiempo.',
+    icono: '🌊',
+    color: 'violet',
+  },
 ];
 
 const FILE_CONFIGS = [
@@ -54,7 +63,7 @@ function toBackendDate(htmlDate: string): string {
   return htmlDate.replace(/-/g, '');
 }
 
-export default function ControlPanel({ onResultado, onError, onCargando, onFechaInicio }: ControlPanelProps) {
+export default function ControlPanel({ onResultado, onPartialResult, onError, onCargando, onFechaInicio }: ControlPanelProps) {
   const [archivos, setArchivos] = useState<Record<string, FileState>>({
     aeropuertos: { files: [], name: '' },
     vuelos: { files: [], name: '' },
@@ -65,7 +74,15 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
   const [fechaFin, setFechaFin] = useState('');
   const [ejecutando, setEjecutando] = useState(false);
   const [progreso, setProgreso] = useState<SimulacionJob | null>(null);
+  const [tiempoTranscurrido, setTiempoTranscurrido] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const formatTiempo = (segundos: number) => {
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   const handleFileChange = useCallback((key: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -96,6 +113,12 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     onCargando(true);
     onError('');
     setProgreso({ jobId: '', status: 'PENDING', progress: 0, message: 'Preparando simulacion...' });
+    setTiempoTranscurrido(0);
+
+    timerRef.current = setInterval(() => {
+      setTiempoTranscurrido(prev => prev + 1);
+    }, 1000);
+
     try {
       const resultado = await ejecutarSimulacion(
         archivos.aeropuertos.files[0],
@@ -104,13 +127,19 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
         escenario,
         fechaInicio ? toBackendDate(fechaInicio) : undefined,
         fechaFin    ? toBackendDate(fechaFin)    : undefined,
-        setProgreso,
+        (job) => {
+          setProgreso(job);
+          if (job.partialResult && onPartialResult) {
+            onPartialResult(job.partialResult);
+          }
+        }
       );
       onResultado(resultado);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
       onError(msg);
     } finally {
+      if (timerRef.current) clearInterval(timerRef.current);
       setEjecutando(false);
       onCargando(false);
       setProgreso(null);
@@ -121,11 +150,13 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     blue:  'border-blue-500/40 bg-blue-500/10 text-blue-400',
     cyan:  'border-cyan-500/40 bg-cyan-500/10 text-cyan-400',
     amber: 'border-amber-500/40 bg-amber-500/10 text-amber-400',
+    violet: 'border-violet-500/40 bg-violet-500/10 text-violet-400',
   };
   const colorMapActive: Record<string, string> = {
     blue:  'border-blue-400 bg-blue-500/20 ring-1 ring-blue-400/30',
     cyan:  'border-cyan-400 bg-cyan-500/20 ring-1 ring-cyan-400/30',
     amber: 'border-amber-400 bg-amber-500/20 ring-1 ring-amber-400/30',
+    violet: 'border-violet-400 bg-violet-500/20 ring-1 ring-violet-400/30',
   };
 
   return (
@@ -269,8 +300,11 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
       {progreso && (
         <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
           <div className="flex items-center justify-between gap-3 text-xs">
-            <span className="text-blue-100 truncate">{progreso.message}</span>
-            <span className="font-mono text-blue-300">{progreso.progress}%</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-blue-100 truncate">{progreso.message}</span>
+              <span className="text-[10px] text-blue-300/70 mt-0.5">Tiempo transcurrido: {formatTiempo(tiempoTranscurrido)}</span>
+            </div>
+            <span className="font-mono text-blue-300 text-sm">{progreso.progress}%</span>
           </div>
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
             <div

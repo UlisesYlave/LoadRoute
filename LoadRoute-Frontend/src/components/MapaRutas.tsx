@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -19,6 +19,7 @@ type ModoMapa = 'sa' | 'alns' | 'ambos';
 
 interface MapaRutasProps {
   resultado: RutaResponse | null;
+  simDia: number;
   simTiempoMinutos: number;
   onSelectVuelo: (vuelo: any) => void;
   selectedVuelo?: any | null;  // tramo seleccionado — dibuja solo su polilínea
@@ -73,6 +74,7 @@ function crearIconoAvion(color: string, angle: number): L.DivIcon {
 
 export default function MapaRutas({
   resultado,
+  simDia,
   simTiempoMinutos,
   onSelectVuelo,
   selectedVuelo,
@@ -93,8 +95,40 @@ export default function MapaRutas({
   const uniqueTramosLineasSA = deduplicarTramosLineas(tramosSA);
   const uniqueTramosLineasALNS = deduplicarTramosLineas(tramosALNS);
 
-  const activePlanesSA = getActiveFlights(tramosSA, simTiempoMinutos);
-  const activePlanesALNS = getActiveFlights(tramosALNS, simTiempoMinutos);
+  const absoluteCurrentMinute = simDia * 1440 + simTiempoMinutos;
+
+  const activePlanesSA = getActiveFlights(tramosSA, absoluteCurrentMinute);
+  const activePlanesALNS = getActiveFlights(tramosALNS, absoluteCurrentMinute);
+
+  // OPTIMIZACIÓN: Precalcular cargas de vuelos una sola vez por resultado
+  const flightLoadsSA = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const r of (resultadoSA?.rutasMuestra || [])) {
+      if (!r.tramos) continue;
+      for (const t of r.tramos) map.set(t.vueloId, (map.get(t.vueloId) || 0) + r.maletas);
+    }
+    return map;
+  }, [resultadoSA]);
+
+  const flightLoadsALNS = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const r of (resultadoALNS?.rutasMuestra || [])) {
+      if (!r.tramos) continue;
+      for (const t of r.tramos) map.set(t.vueloId, (map.get(t.vueloId) || 0) + r.maletas);
+    }
+    return map;
+  }, [resultadoALNS]);
+
+  // OPTIMIZACIÓN: Calcular cargas de aeropuertos en UNA SOLA PASADA (O(R) en vez de O(A*R))
+  const airportLoads = useMemo(() => {
+    const rutasParaCarga = modoMapa === 'sa'
+      ? (resultadoSA?.rutasMuestra || [])
+      : modoMapa === 'alns'
+        ? (resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [])
+        : [...(resultadoSA?.rutasMuestra || []), ...(resultadoALNS?.rutasMuestra || [])];
+    
+    return computeAllAirportLoads(rutasParaCarga, absoluteCurrentMinute);
+  }, [resultadoSA, resultadoALNS, modoMapa, absoluteCurrentMinute]);
 
   if (aeropuertos.length === 0) {
     return (
@@ -106,22 +140,24 @@ export default function MapaRutas({
 
   return (
     <div className="w-full h-full relative">
-      <div className="absolute left-4 top-4 z-[500] flex overflow-hidden rounded-lg border border-slate-700/60 bg-[#0c1a30]/95 shadow-xl">
-        {([
-          ['sa', 'SA'],
-          ['alns', 'ALNS'],
-          ['ambos', 'Ambos'],
-        ] as const).map(([modo, label]) => (
-          <button
-            key={modo}
-            onClick={() => onModoMapa(modo)}
-            className={`px-3 py-2 text-xs font-semibold transition-colors
-              ${modoMapa === modo ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-slate-700/70'}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {resultadoALNS && (
+        <div className="absolute left-4 top-4 z-[500] flex overflow-hidden rounded-lg border border-slate-700/60 bg-[#0c1a30]/95 shadow-xl">
+          {([
+            ['sa', 'SA'],
+            ['alns', 'ALNS'],
+            ['ambos', 'Ambos'],
+          ] as const).map(([modo, label]) => (
+            <button
+              key={modo}
+              onClick={() => onModoMapa(modo)}
+              className={`px-3 py-2 text-xs font-semibold transition-colors
+                ${modoMapa === modo ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-slate-700/70'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       <MapContainer
         center={[20, 30]}
         zoom={3}
@@ -152,23 +188,20 @@ export default function MapaRutas({
 
         {/* Marcadores de aeropuertos */}
         {aeropuertos.map(a => {
-          const rutasParaCarga = modoMapa === 'sa'
-            ? (resultadoSA?.rutasMuestra || [])
-            : modoMapa === 'alns'
-              ? (resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [])
-              : [...(resultadoSA?.rutasMuestra || []), ...(resultadoALNS?.rutasMuestra || [])];
-          const cargaActual = getAirportCurrentLoad(a.codigo, rutasParaCarga, simTiempoMinutos);
+          const cargaActual = airportLoads.get(a.codigo) || 0;
           const pct = a.capacidadMax > 0 ? Math.round((cargaActual / a.capacidadMax) * 100) : 0;
           return (
             <CircleMarker
               key={a.codigo}
               center={[a.latitud, a.longitud]}
               radius={5}
-              fillColor={getAirportColor(cargaActual, a.capacidadMax, umbralVerde, umbralAmbar)}
-              fillOpacity={0.9}
-              color="#fff"
-              weight={1}
-              opacity={0.8}
+              pathOptions={{
+                fillColor: getAirportColor(cargaActual, a.capacidadMax, umbralVerde, umbralAmbar),
+                fillOpacity: 0.9,
+                color: "#fff",
+                weight: 1,
+                opacity: 0.8
+              }}
             >
               <Tooltip direction="top" offset={[0, -8]} className="airport-tooltip">
                 <div style={{ fontSize: '11px', lineHeight: 1.4 }}>
@@ -183,8 +216,8 @@ export default function MapaRutas({
 
         {/* Aviones SA en vuelo */}
         {mostrarSA && activePlanesSA.map((t) => {
-          const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
-          const carga = getVueloLoad(t.vueloId, resultadoSA?.rutasMuestra || []);
+          const { lat, lon, angle } = getInterpolatedPosition(t, absoluteCurrentMinute);
+          const carga = flightLoadsSA.get(t.vueloId) || 0;
           const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
           return (
             <Marker 
@@ -198,8 +231,8 @@ export default function MapaRutas({
 
         {/* Aviones ALNS en vuelo */}
         {mostrarALNS && activePlanesALNS.map((t) => {
-          const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
-          const carga = getVueloLoad(t.vueloId, resultadoALNS?.rutasMuestra || []);
+          const { lat, lon, angle } = getInterpolatedPosition(t, absoluteCurrentMinute);
+          const carga = flightLoadsALNS.get(t.vueloId) || 0;
           const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
           return (
             <Marker 
@@ -229,24 +262,16 @@ function deduplicarTramosLineas(tramos: any[]) {
   });
 }
 
-function isFlying(t: any, current: number) {
-  if (t.llegadaMinutosGMT === undefined || t.salidaMinutosGMT === undefined) return false;
-  
-  if (t.llegadaMinutosGMT >= t.salidaMinutosGMT) {
-    return current >= t.salidaMinutosGMT && current <= t.llegadaMinutosGMT;
-  } else {
-    // cruza medianoche
-    return current >= t.salidaMinutosGMT || current <= t.llegadaMinutosGMT;
-  }
+function isFlying(t: any, absoluteCurrent: number) {
+  if (t.llegadaAbsMinutos === undefined || t.salidaAbsMinutos === undefined) return false;
+  return absoluteCurrent >= t.salidaAbsMinutos && absoluteCurrent <= t.llegadaAbsMinutos;
 }
 
-function getInterpolatedPosition(t: any, current: number) {
-  let duration = t.llegadaMinutosGMT - t.salidaMinutosGMT;
-  if (duration < 0) duration += 1440;
+function getInterpolatedPosition(t: any, absoluteCurrent: number) {
+  let duration = t.llegadaAbsMinutos - t.salidaAbsMinutos;
+  if (duration <= 0) duration = 1;
   
-  let passed = current - t.salidaMinutosGMT;
-  if (passed < 0) passed += 1440;
-  
+  let passed = absoluteCurrent - t.salidaAbsMinutos;
   let p = passed / duration;
   if (p < 0) p = 0;
   if (p > 1) p = 1;
@@ -263,13 +288,13 @@ function getInterpolatedPosition(t: any, current: number) {
   return { lat, lon, angle };
 }
 
-function getActiveFlights(tramos: any[], current: number) {
+function getActiveFlights(tramos: any[], absoluteCurrent: number) {
   const seen = new Set<number>();
   const active: any[] = [];
   
   for (const t of tramos) {
     if (!t.vueloId || seen.has(t.vueloId)) continue;
-    if (isFlying(t, current)) {
+    if (isFlying(t, absoluteCurrent)) {
       seen.add(t.vueloId);
       active.push(t);
     }
@@ -277,47 +302,28 @@ function getActiveFlights(tramos: any[], current: number) {
   return active;
 }
 
-function getAirportCurrentLoad(airportCode: string, rutas: any[], currentMinute: number): number {
-   let total = 0;
-   for (const r of rutas) {
-      if (!r.tramos || r.tramos.length === 0) continue;
-      
-      const firstFlight = r.tramos[0];
-      const lastFlight = r.tramos[r.tramos.length - 1];
-
-      if (airportCode === r.origen) {
-         if (currentMinute <= firstFlight.salidaMinutosGMT) {
-            total += r.maletas;
-         }
-      }
-      
-      if (airportCode === r.destino) {
-         if (currentMinute >= lastFlight.llegadaMinutosGMT) {
-            total += r.maletas;
-         }
-      }
-
-      for (let i = 0; i < r.tramos.length - 1; i++) {
-         const arrFlight = r.tramos[i];
-         const depFlight = r.tramos[i+1];
-         if (airportCode === arrFlight.destino) {
-            if (currentMinute >= arrFlight.llegadaMinutosGMT && currentMinute <= depFlight.salidaMinutosGMT) {
-                total += r.maletas;
-            } else if (arrFlight.llegadaMinutosGMT > depFlight.salidaMinutosGMT) {
-                // crosses midnight
-                if (currentMinute >= arrFlight.llegadaMinutosGMT || currentMinute <= depFlight.salidaMinutosGMT) {
-                    total += r.maletas;
-                }
-            }
-         }
-      }
-   }
-   return total;
-}
-
-// Obtener maletas en un vuelo consultando las envolturas de rutas
-function getVueloLoad(vueloId: number, rutasMuestra: any[]): number {
-    return rutasMuestra
-       .filter(r => r.tramos && r.tramos.some((tr: any) => tr.vueloId === vueloId))
-       .reduce((sum, r) => sum + r.maletas, 0);
+function computeAllAirportLoads(rutas: any[], absoluteCurrentMinute: number): Map<string, number> {
+  const loads = new Map<string, number>();
+  for (const r of rutas) {
+    if (!r.tramos || r.tramos.length === 0) continue;
+    const first = r.tramos[0];
+    const last = r.tramos[r.tramos.length - 1];
+    
+    // 1. Origen: Desde la recepción de las maletas en el aeropuerto hasta que sale el primer vuelo
+    if (absoluteCurrentMinute >= r.recepcionAbsMinutos && absoluteCurrentMinute <= first.salidaAbsMinutos) {
+       loads.set(r.origen, (loads.get(r.origen) || 0) + r.maletas);
+    }
+    
+    // 2. Destino final: NO se acumula capacidad (las maletas se entregan)
+    
+    // 3. Conexiones intermedias: Desde que llega un vuelo hasta que sale el siguiente
+    for (let i = 0; i < r.tramos.length - 1; i++) {
+        const arr = r.tramos[i];
+        const dep = r.tramos[i+1];
+        if (absoluteCurrentMinute >= arr.llegadaAbsMinutos && absoluteCurrentMinute <= dep.salidaAbsMinutos) {
+            loads.set(arr.destino, (loads.get(arr.destino) || 0) + r.maletas);
+        }
+    }
+  }
+  return loads;
 }

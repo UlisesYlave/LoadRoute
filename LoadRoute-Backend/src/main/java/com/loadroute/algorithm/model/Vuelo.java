@@ -1,7 +1,10 @@
 package com.loadroute.algorithm.model;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -27,10 +30,11 @@ public class Vuelo {
     private LocalTime     horaSalidaLocal;
     private LocalTime     horaLlegadaLocal;
     private int           capacidadMax;
-    private int           capacidadOcupada;
+    private final Map<LocalDate, Integer> capacidadOcupadaPorDia;
 
     public Vuelo() {
         this.id = CONTADOR.incrementAndGet();
+        this.capacidadOcupadaPorDia = new ConcurrentHashMap<>();
     }
 
     public Vuelo(Aeropuerto origen, Aeropuerto destino,
@@ -42,7 +46,7 @@ public class Vuelo {
         this.horaSalidaLocal  = horaSalidaLocal;
         this.horaLlegadaLocal = horaLlegadaLocal;
         this.capacidadMax     = capacidadMax;
-        this.capacidadOcupada = 0;
+        this.capacidadOcupadaPorDia = new ConcurrentHashMap<>();
     }
 
     /** Resetea el contador global de IDs (útil entre ejecuciones). */
@@ -91,10 +95,21 @@ public class Vuelo {
 
     // ── Gestión de capacidad ─────────────────────────────────────────────────
 
-    public int  getCapacidadDisponible()    { return capacidadMax - capacidadOcupada; }
-    public boolean tieneCapacidad(int n)    { return capacidadOcupada + n <= capacidadMax; }
-    public void reservar(int n)             { capacidadOcupada += n; }
-    public void liberar(int n)              { capacidadOcupada = Math.max(0, capacidadOcupada - n); }
+    public int getCapacidadDisponible(LocalDate fecha) {
+        return capacidadMax - capacidadOcupadaPorDia.getOrDefault(fecha, 0);
+    }
+
+    public boolean tieneCapacidad(LocalDate fecha, int n) {
+        return capacidadOcupadaPorDia.getOrDefault(fecha, 0) + n <= capacidadMax;
+    }
+
+    public void reservar(LocalDate fecha, int n) {
+        capacidadOcupadaPorDia.merge(fecha, n, Integer::sum);
+    }
+
+    public void liberar(LocalDate fecha, int n) {
+        capacidadOcupadaPorDia.computeIfPresent(fecha, (k, v) -> Math.max(0, v - n));
+    }
 
     // ── Getters / Setters ────────────────────────────────────────────────────
 
@@ -104,19 +119,19 @@ public class Vuelo {
     public LocalTime    getHoraSalidaLocal()    { return horaSalidaLocal; }
     public LocalTime    getHoraLlegadaLocal()   { return horaLlegadaLocal; }
     public int          getCapacidadMax()       { return capacidadMax; }
-    public int          getCapacidadOcupada()   { return capacidadOcupada; }
+    public int          getCapacidadOcupada(LocalDate fecha) { return capacidadOcupadaPorDia.getOrDefault(fecha, 0); }
 
     public void setOrigen(Aeropuerto o)             { this.origen = o; }
     public void setDestino(Aeropuerto d)            { this.destino = d; }
     public void setHoraSalidaLocal(LocalTime t)     { this.horaSalidaLocal = t; }
     public void setHoraLlegadaLocal(LocalTime t)    { this.horaLlegadaLocal = t; }
     public void setCapacidadMax(int c)              { this.capacidadMax = c; }
-    public void setCapacidadOcupada(int c)          { this.capacidadOcupada = c; }
+    public void resetCapacidad()                    { this.capacidadOcupadaPorDia.clear(); }
 
     @Override
     public String toString() {
-        return String.format("Vuelo{id=%d, %s→%s, sal=%s(GMT%+d), cap=%d/%d}",
+        return String.format("Vuelo{id=%d, %s→%s, sal=%s(GMT%+d), capMax=%d}",
                 id, origen.getCodigo(), destino.getCodigo(),
-                horaSalidaLocal, origen.getGmt(), capacidadOcupada, capacidadMax);
+                horaSalidaLocal, origen.getGmt(), capacidadMax);
     }
 }

@@ -162,6 +162,10 @@ public class SimulatedAnnealing {
             iteraciones, reheats, mejorasAceptadas, peoresAceptadas,
             cacheHits, costoInicial, costoFinal, getMejoraRelativa(), ms / 1000.0));
 
+        if (!mejorSolucion.esFactible()) {
+            throw new RuntimeException("ERROR_CAPACIDAD: Imposible asignar los envíos sin causar desbordamientos en vuelos o aeropuertos.");
+        }
+
         return mejorSolucion;
     }
 
@@ -239,7 +243,7 @@ public class SimulatedAnnealing {
         final Map<String, Envio>       envios;
         final Map<String, List<Vuelo>> asignaciones;
         final Map<String, Long>        transitoHoras;
-        final Map<Integer, Integer>    cargaPorVuelo;
+        final Map<String, Integer>     cargaPorVueloFecha;
         final ArrayList<String>        enviosConRuta;
         final Map<String, Integer>     indiceConRuta;
         double costoTotal;
@@ -253,7 +257,7 @@ public class SimulatedAnnealing {
             this.envios       = envios;
             this.asignaciones = new LinkedHashMap<>();
             this.transitoHoras = new HashMap<>();
-            this.cargaPorVuelo = new HashMap<>();
+            this.cargaPorVueloFecha = new HashMap<>();
             this.enviosConRuta = new ArrayList<>();
             this.indiceConRuta = new HashMap<>();
 
@@ -268,8 +272,12 @@ public class SimulatedAnnealing {
                     Envio envio = envios.get(id);
                     if (envio != null) {
                         transitoHoras.put(id, calcularTransitoHoras(ruta, envio));
+                        LocalDateTime t = envio.getRecepcionGMT();
                         for (Vuelo v : ruta) {
-                            cargaPorVuelo.merge(v.getId(), envio.getCantidadMaletas(), Integer::sum);
+                            LocalDateTime salida = v.getProximaSalidaGMT(t, 30);
+                            String key = v.getId() + "_" + salida.toLocalDate().toString();
+                            cargaPorVueloFecha.merge(key, envio.getCantidadMaletas(), Integer::sum);
+                            t = v.getLlegadaGMT(salida);
                         }
                     }
                 }
@@ -287,24 +295,50 @@ public class SimulatedAnnealing {
             int sla     = envio.getSlaHoras();
 
             double delta = (horasNuevas - horasViejas);
-            delta += SolucionEstado.PESO_SLA * (Math.max(0, horasNuevas - sla)
-                                              - Math.max(0, horasViejas - sla));
+            delta += SolucionEstado.PESO_SLA * (Math.max(0, horasNuevas - sla) - Math.max(0, horasViejas - sla));
 
+            // Restar costo de ruta vieja y modificar estado temporalmente
+            LocalDateTime tViejo = envio.getRecepcionGMT();
             for (Vuelo v : rutaVieja) {
-                int c = cargaPorVuelo.getOrDefault(v.getId(), 0);
-                delta += SolucionEstado.PESO_CAPACIDAD_VUELO
-                       * (Math.max(0, c - maletas - v.getCapacidadMax())
-                        - Math.max(0, c - v.getCapacidadMax()));
+                LocalDateTime salida = v.getProximaSalidaGMT(tViejo, 30);
+                java.time.LocalDate fecha = salida.toLocalDate();
+                String key = v.getId() + "_" + fecha.toString();
+                int c = cargaPorVueloFecha.getOrDefault(key, 0);
+                int globalLoad = v.getCapacidadOcupada(fecha);
+                delta -= SolucionEstado.PESO_CAPACIDAD_VUELO * Math.max(0, globalLoad + c - v.getCapacidadMax());
+                cargaPorVueloFecha.put(key, c - maletas); // Aplicar temporal
+                tViejo = v.getLlegadaGMT(salida);
             }
+
+            // Sumar costo de ruta nueva
+            LocalDateTime tNuevo = envio.getRecepcionGMT();
             for (Vuelo v : rutaNueva) {
-                boolean enVieja = rutaVieja.stream().anyMatch(x -> x.getId() == v.getId());
-                int base = enVieja
-                    ? cargaPorVuelo.getOrDefault(v.getId(), 0) - maletas
-                    : cargaPorVuelo.getOrDefault(v.getId(), 0);
-                delta += SolucionEstado.PESO_CAPACIDAD_VUELO
-                       * (Math.max(0, base + maletas - v.getCapacidadMax())
-                        - Math.max(0, base - v.getCapacidadMax()));
+                LocalDateTime salida = v.getProximaSalidaGMT(tNuevo, 30);
+                java.time.LocalDate fecha = salida.toLocalDate();
+                String key = v.getId() + "_" + fecha.toString();
+                int c = cargaPorVueloFecha.getOrDefault(key, 0);
+                int globalLoad = v.getCapacidadOcupada(fecha);
+                delta += SolucionEstado.PESO_CAPACIDAD_VUELO * Math.max(0, globalLoad + c + maletas - v.getCapacidadMax());
+                cargaPorVueloFecha.put(key, c + maletas); // Aplicar temporal
+                tNuevo = v.getLlegadaGMT(salida);
             }
+
+            // Restaurar estado temporal
+            tNuevo = envio.getRecepcionGMT();
+            for (Vuelo v : rutaNueva) {
+                LocalDateTime salida = v.getProximaSalidaGMT(tNuevo, 30);
+                String key = v.getId() + "_" + salida.toLocalDate().toString();
+                cargaPorVueloFecha.put(key, cargaPorVueloFecha.get(key) - maletas);
+                tNuevo = v.getLlegadaGMT(salida);
+            }
+            tViejo = envio.getRecepcionGMT();
+            for (Vuelo v : rutaVieja) {
+                LocalDateTime salida = v.getProximaSalidaGMT(tViejo, 30);
+                String key = v.getId() + "_" + salida.toLocalDate().toString();
+                cargaPorVueloFecha.put(key, cargaPorVueloFecha.get(key) + maletas);
+                tViejo = v.getLlegadaGMT(salida);
+            }
+
             return delta;
         }
 
@@ -316,8 +350,20 @@ public class SimulatedAnnealing {
             undoDelta = delta;
 
             int maletas = envio.getCantidadMaletas();
-            for (Vuelo v : rutaVieja) cargaPorVuelo.merge(v.getId(), -maletas, Integer::sum);
-            for (Vuelo v : rutaNueva) cargaPorVuelo.merge(v.getId(), maletas, Integer::sum);
+            LocalDateTime tViejo = envio.getRecepcionGMT();
+            for (Vuelo v : rutaVieja) {
+                LocalDateTime salida = v.getProximaSalidaGMT(tViejo, 30);
+                String key = v.getId() + "_" + salida.toLocalDate().toString();
+                cargaPorVueloFecha.merge(key, -maletas, Integer::sum);
+                tViejo = v.getLlegadaGMT(salida);
+            }
+            LocalDateTime tNuevo = envio.getRecepcionGMT();
+            for (Vuelo v : rutaNueva) {
+                LocalDateTime salida = v.getProximaSalidaGMT(tNuevo, 30);
+                String key = v.getId() + "_" + salida.toLocalDate().toString();
+                cargaPorVueloFecha.merge(key, maletas, Integer::sum);
+                tNuevo = v.getLlegadaGMT(salida);
+            }
             transitoHoras.put(idEnvio, calcularTransitoHoras(rutaNueva, envio));
             asignaciones.put(idEnvio, rutaNueva);
             costoTotal += delta;
@@ -408,11 +454,15 @@ public class SimulatedAnnealing {
                 costo += horas;
                 costo += SolucionEstado.PESO_SLA * Math.max(0, horas - envio.getSlaHoras());
             }
-            for (Map.Entry<Integer, Integer> e : cargaPorVuelo.entrySet()) {
-                Vuelo v = buscarVuelo(e.getKey());
+            for (Map.Entry<String, Integer> e : cargaPorVueloFecha.entrySet()) {
+                String[] parts = e.getKey().split("_");
+                int vueloId = Integer.parseInt(parts[0]);
+                java.time.LocalDate fecha = java.time.LocalDate.parse(parts[1]);
+                Vuelo v = buscarVuelo(vueloId);
                 if (v != null) {
+                    int globalLoad = v.getCapacidadOcupada(fecha);
                     costo += SolucionEstado.PESO_CAPACIDAD_VUELO
-                           * Math.max(0, e.getValue() - v.getCapacidadMax());
+                           * Math.max(0, globalLoad + e.getValue() - v.getCapacidadMax());
                 }
             }
             for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
@@ -487,12 +537,32 @@ public class SimulatedAnnealing {
 
     private SolucionEstado construirGreedy(Map<String, Envio> envios) {
         SolucionEstado sol = new SolucionEstado(envios);
+        Map<Vuelo, Map<java.time.LocalDate, Integer>> reservasTemporales = new HashMap<>();
+
         for (Envio envio : envios.values()) {
             List<List<Vuelo>> rutas = red.buscarRutas(envio, true);
             if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio);
             if (!rutas.isEmpty()) {
-                sol.asignarRuta(envio.getId(), rutas.get(0));
-                for (Vuelo v : rutas.get(0)) v.reservar(envio.getCantidadMaletas());
+                List<Vuelo> ruta = rutas.get(0);
+                sol.asignarRuta(envio.getId(), ruta);
+                
+                LocalDateTime t = envio.getRecepcionGMT();
+                for (Vuelo v : ruta) {
+                    LocalDateTime salida = v.getProximaSalidaGMT(t, 30);
+                    java.time.LocalDate fecha = salida.toLocalDate();
+                    v.reservar(fecha, envio.getCantidadMaletas());
+                    reservasTemporales.computeIfAbsent(v, k -> new HashMap<>())
+                            .merge(fecha, envio.getCantidadMaletas(), Integer::sum);
+                    t = v.getLlegadaGMT(salida);
+                }
+            }
+        }
+        
+        // Liberar las reservas temporales para que SA use evaluarCostoTotal sin ensuciar estado global
+        for (Map.Entry<Vuelo, Map<java.time.LocalDate, Integer>> entry : reservasTemporales.entrySet()) {
+            Vuelo v = entry.getKey();
+            for (Map.Entry<java.time.LocalDate, Integer> diaReserva : entry.getValue().entrySet()) {
+                v.liberar(diaReserva.getKey(), diaReserva.getValue());
             }
         }
         return sol;

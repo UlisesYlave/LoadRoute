@@ -19,6 +19,9 @@ public class SimulacionJobDTO {
     @JsonProperty("result")
     private RutaResponseDTO result;
 
+    @JsonProperty("partialResult")
+    private RutaResponseDTO partialResult;
+
     @JsonProperty("error")
     private String error;
 
@@ -46,12 +49,16 @@ public class SimulacionJobDTO {
     public RutaResponseDTO getResult() { return result; }
     public void setResult(RutaResponseDTO result) { this.result = result; }
 
+    public RutaResponseDTO getPartialResult() { return partialResult; }
+    public void setPartialResult(RutaResponseDTO partialResult) { this.partialResult = partialResult; }
+
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
 
     public SimulacionJobDTO copy() {
         SimulacionJobDTO dto = new SimulacionJobDTO(jobId, status, progress, message);
         dto.setResult(result);
+        dto.setPartialResult(partialResult);
         dto.setError(error);
         return dto;
     }

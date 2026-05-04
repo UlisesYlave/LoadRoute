@@ -18,17 +18,17 @@ import java.util.regex.*;
  * Parsers para los tres archivos de datos de Tasf.B2B.
  *
  * CORRECCIÓN CRÍTICA v4:
- *   Todos los archivos _envios_XXXX_.txt usan IDs que comienzan en 000000001.
- *   Al hacer putAll() de 30 archivos en el mismo Map, los IDs se sobreescriben
- *   y solo sobreviven ~459K envíos del último archivo (VIDP) en lugar de los
- *   9.5M reales entre todos los aeropuertos.
+ * Todos los archivos _envios_XXXX_.txt usan IDs que comienzan en 000000001.
+ * Al hacer putAll() de 30 archivos en el mismo Map, los IDs se sobreescriben
+ * y solo sobreviven ~459K envíos del último archivo (VIDP) en lugar de los
+ * 9.5M reales entre todos los aeropuertos.
  *
- *   SOLUCIÓN: La clave del Map es COMPUESTA: "{IATA}_{idOriginal}"
- *     Antes: "000000001"          → colisión entre VIDP, EBCI, EDDI, etc.
- *     Ahora: "VIDP_000000001"     → único globalmente
+ * SOLUCIÓN: La clave del Map es COMPUESTA: "{IATA}_{idOriginal}"
+ * Antes: "000000001" → colisión entre VIDP, EBCI, EDDI, etc.
+ * Ahora: "VIDP_000000001" → único globalmente
  *
- *   El campo Envio.id sigue siendo el ID original del archivo (para reportes),
- *   pero la clave del Map garantiza unicidad entre aeropuertos.
+ * El campo Envio.id sigue siendo el ID original del archivo (para reportes),
+ * pero la clave del Map garantiza unicidad entre aeropuertos.
  */
 public class Parsers {
 
@@ -47,41 +47,49 @@ public class Parsers {
         for (String linea : lineas) {
             linea = linea.trim();
             linea = linea.replaceAll("[\uFEFF\u0000]", "").trim();
-            if (linea.isEmpty() || linea.startsWith("*") || linea.startsWith("PDDS")) continue;
+            if (linea.isEmpty() || linea.startsWith("*") || linea.startsWith("PDDS"))
+                continue;
 
             if (linea.startsWith("America") || linea.contains("America del Sur")) {
-                continenteActual = "america_sur"; continue;
+                continenteActual = "america_sur";
+                continue;
             }
             if (linea.startsWith("Europa")) {
-                continenteActual = "europa"; continue;
+                continenteActual = "europa";
+                continue;
             }
             if (linea.startsWith("Asia")) {
-                continenteActual = "asia"; continue;
+                continenteActual = "asia";
+                continue;
             }
 
             String[] partes = linea.split("\\s+");
-            if (partes.length < 7) continue;
+            if (partes.length < 7)
+                continue;
             try {
                 Integer.parseInt(partes[0]);
                 String codigo = partes[1];
-                if (codigo.length() != 4) continue;
+                if (codigo.length() != 4)
+                    continue;
 
                 int gmt = 0, capacidad = 430, gmtIdx = -1;
                 for (int i = 2; i < partes.length; i++) {
                     try {
                         int val = Integer.parseInt(partes[i]);
                         if (gmtIdx == -1 && (partes[i].startsWith("+") || partes[i].startsWith("-"))) {
-                            gmt = val; gmtIdx = i;
+                            gmt = val;
+                            gmtIdx = i;
                         } else if (gmtIdx > 0 && i == gmtIdx + 1) {
                             capacidad = val;
                         }
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
 
                 double lat = parsearCoordenada(linea, "Latitude:");
                 double lon = parsearCoordenada(linea, "Longitude:");
                 String ciudad = partes[2];
-                String pais   = partes.length > 3 ? partes[3] : "";
+                String pais = partes.length > 3 ? partes[3] : "";
 
                 mapa.put(codigo, new Aeropuerto(codigo, ciudad, pais, continenteActual,
                         gmt, capacidad, lat, lon));
@@ -104,7 +112,7 @@ public class Parsers {
     // ════════════════════════════════════════════════════════════════════════
 
     public static List<Vuelo> parsearVuelos(InputStream inputStream,
-                                            Map<String, Aeropuerto> aeropuertos)
+            Map<String, Aeropuerto> aeropuertos)
             throws IOException {
         List<Vuelo> vuelos = new ArrayList<>();
         List<String> lineas = leerLineas(inputStream, StandardCharsets.UTF_8);
@@ -113,24 +121,27 @@ public class Parsers {
 
         for (String linea : lineas) {
             linea = linea.trim();
-            if (linea.isEmpty()) continue;
+            if (linea.isEmpty())
+                continue;
 
             String[] partes = linea.split("-");
-            if (partes.length < 5) continue;
+            if (partes.length < 5)
+                continue;
 
             try {
-                String codOrigen  = partes[0].trim();
+                String codOrigen = partes[0].trim();
                 String codDestino = partes[1].trim();
-                LocalTime salida  = LocalTime.parse(partes[2].trim(), fmt);
+                LocalTime salida = LocalTime.parse(partes[2].trim(), fmt);
                 LocalTime llegada = LocalTime.parse(partes[3].trim(), fmt);
-                int capacidad     = Integer.parseInt(partes[4].trim());
+                int capacidad = Integer.parseInt(partes[4].trim());
 
-                Aeropuerto origen  = aeropuertos.get(codOrigen);
+                Aeropuerto origen = aeropuertos.get(codOrigen);
                 Aeropuerto destino = aeropuertos.get(codDestino);
 
                 if (origen == null || destino == null) {
                     omitidos++;
-                    if (omitidos <= 5) LOG.warning("Vuelo omitido: " + linea);
+                    if (omitidos <= 5)
+                        LOG.warning("Vuelo omitido: " + linea);
                     continue;
                 }
 
@@ -140,7 +151,8 @@ public class Parsers {
             }
         }
 
-        if (omitidos > 5) LOG.warning("... y " + (omitidos - 5) + " vuelos mas omitidos.");
+        if (omitidos > 5)
+            LOG.warning("... y " + (omitidos - 5) + " vuelos mas omitidos.");
         LOG.info("Vuelos cargados: " + vuelos.size() + " | omitidos: " + omitidos);
         return vuelos;
     }
@@ -158,8 +170,8 @@ public class Parsers {
      * sus IDs desde 000000001.
      *
      * Ejemplo de claves generadas:
-     *   "VIDP_000000001", "VIDP_000000002", ..., "VIDP_000238202"
-     *   "EDDI_000000001", "EDDI_000000002", ..., "EDDI_000344641"
+     * "VIDP_000000001", "VIDP_000000002", ..., "VIDP_000238202"
+     * "EDDI_000000001", "EDDI_000000002", ..., "EDDI_000344641"
      *
      * El campo Envio.id conserva el ID original del archivo para reportes.
      *
@@ -170,9 +182,9 @@ public class Parsers {
      * @return mapa con clave compuesta "{IATA}_{id}" → Envio
      */
     public static Map<String, Envio> parsearEnvios(InputStream inputStream,
-                                                    String nombreArchivo,
-                                                    Map<String, Aeropuerto> aeropuertos,
-                                                    int limite) throws IOException {
+            String nombreArchivo,
+            Map<String, Aeropuerto> aeropuertos,
+            int limite) throws IOException {
         Map<String, Envio> mapa = new LinkedHashMap<>();
 
         String codigoOrigen = extraerIATADeNombreArchivo(nombreArchivo);
@@ -180,7 +192,7 @@ public class Parsers {
         if (origen == null) {
             throw new IllegalArgumentException(
                     "Aeropuerto origen '" + codigoOrigen + "' no encontrado. " +
-                    "Verificar que el nombre del archivo sea _envios_XXXX_.txt");
+                            "Verificar que el nombre del archivo sea _envios_XXXX_.txt");
         }
 
         List<String> lineas = leerLineas(inputStream, StandardCharsets.UTF_8);
@@ -189,23 +201,30 @@ public class Parsers {
 
         for (String linea : lineas) {
             linea = linea.trim();
-            if (linea.isEmpty()) continue;
-            if (limite > 0 && cargados >= limite) break;
+            if (linea.isEmpty())
+                continue;
+            if (limite > 0 && cargados >= limite)
+                break;
 
             String[] partes = linea.split("-");
-            if (partes.length < 7) continue;
+            if (partes.length < 7)
+                continue;
 
             try {
-                String id         = partes[0].trim();
-                String fecha      = partes[1].trim();
-                String hora       = partes[2].trim();
-                String minuto     = partes[3].trim();
+                String id = partes[0].trim();
+                String fecha = partes[1].trim();
+                String hora = partes[2].trim();
+                String minuto = partes[3].trim();
                 String codDestino = partes[4].trim();
-                int    maletas    = Integer.parseInt(partes[5].trim());
-                String idCliente  = partes[6].trim();
+                int maletas = Integer.parseInt(partes[5].trim());
+                maletas = maletas * 4;
+                String idCliente = partes[6].trim();
 
                 Aeropuerto destino = aeropuertos.get(codDestino);
-                if (destino == null) { omitidos++; continue; }
+                if (destino == null) {
+                    omitidos++;
+                    continue;
+                }
 
                 LocalDateTime recepcion = LocalDateTime.parse(
                         fecha + "T" + hora + ":" + minuto, fmtFecha);
@@ -230,7 +249,8 @@ public class Parsers {
     public static String extraerIATADeNombreArchivo(String nombre) {
         Pattern patron = Pattern.compile("_envios_([A-Z]{4})_", Pattern.CASE_INSENSITIVE);
         Matcher m = patron.matcher(nombre);
-        if (m.find()) return m.group(1).toUpperCase();
+        if (m.find())
+            return m.group(1).toUpperCase();
 
         Pattern fallback = Pattern.compile("\\b([A-Za-z]{4})\\b");
         Matcher mf = fallback.matcher(nombre);
@@ -248,19 +268,20 @@ public class Parsers {
 
     static double parsearCoordenada(String linea, String prefijo) {
         int idx = linea.indexOf(prefijo);
-        if (idx < 0) return 0.0;
+        if (idx < 0)
+            return 0.0;
         String sub = linea.substring(idx + prefijo.length()).trim();
         Pattern p = Pattern.compile(
-            "(\\d+)\\s*[°º]\\s*(\\d+)\\s*[''`]\\s*([\\d.]+)\\s*[\"\\u201C\\u2033]?\\s*([NSEWnsew])"
-        );
+                "(\\d+)\\s*[°º]\\s*(\\d+)\\s*[''`]\\s*([\\d.]+)\\s*[\"\\u201C\\u2033]?\\s*([NSEWnsew])");
         Matcher m = p.matcher(sub);
         if (m.find()) {
-            double grados   = Double.parseDouble(m.group(1));
-            double minutos  = Double.parseDouble(m.group(2));
+            double grados = Double.parseDouble(m.group(1));
+            double minutos = Double.parseDouble(m.group(2));
             double segundos = Double.parseDouble(m.group(3));
-            String dir      = m.group(4).toUpperCase();
-            double decimal  = grados + minutos / 60.0 + segundos / 3600.0;
-            if (dir.equals("S") || dir.equals("W")) decimal = -decimal;
+            String dir = m.group(4).toUpperCase();
+            double decimal = grados + minutos / 60.0 + segundos / 3600.0;
+            if (dir.equals("S") || dir.equals("W"))
+                decimal = -decimal;
             return decimal;
         }
         return 0.0;

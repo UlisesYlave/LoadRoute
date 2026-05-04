@@ -59,9 +59,10 @@ public class RedLogistica {
                     .getOrDefault(estado.aeropuertoActual, Collections.emptyList());
 
             for (Vuelo vuelo : vuelosDisponibles) {
-                if (soloConCapacidad && !vuelo.tieneCapacidad(maletas)) continue;
-
                 LocalDateTime proximaSalida = vuelo.getProximaSalidaGMT(estado.tiempoActual, BUFFER_CONEXION);
+                
+                if (soloConCapacidad && !vuelo.tieneCapacidad(proximaSalida.toLocalDate(), maletas)) continue;
+
                 LocalDateTime llegada       = vuelo.getLlegadaGMT(proximaSalida);
 
                 if (llegada.isAfter(deadlineGMT)) continue;

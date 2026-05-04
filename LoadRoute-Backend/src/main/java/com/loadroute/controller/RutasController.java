@@ -26,7 +26,7 @@ import java.util.List;
  *   enviosFiles      — uno o más archivos _envios_XXXX_.txt
  *
  * Parámetros de query:
- *   escenario        — 1 (tiempo real), 2 (periodo), 3 (colapso). Default: 1
+ *   escenario        — 1 (tiempo real), 2 (periodo), 3 (colapso), 4 (rolling horizon). Default: 1
  *   fechaInicio      — YYYYMMDD. Filtra envíos desde esta fecha (inclusive). Opcional.
  *   fechaFin         — YYYYMMDD. Filtra envíos hasta esta fecha (inclusive). Opcional.
  *
@@ -67,7 +67,7 @@ public class RutasController {
      * @param aeropuertosFile archivo de catálogo de aeropuertos (UTF-16 BE)
      * @param vuelosFile      archivo de planes de vuelo
      * @param enviosFiles     lista de archivos de envíos (_envios_XXXX_.txt)
-     * @param escenario       1=tiempo real, 2=periodo, 3=colapso
+     * @param escenario       1=tiempo real, 2=periodo, 3=colapso, 4=rolling horizon
      * @param fechaInicio     YYYYMMDD — filtrar envíos desde esta fecha (hora local del aeropuerto)
      * @param fechaFin        YYYYMMDD — filtrar envíos hasta esta fecha (hora local del aeropuerto)
      * @return DTO con resultados de los algoritmos
