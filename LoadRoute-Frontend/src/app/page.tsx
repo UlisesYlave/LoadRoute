@@ -105,6 +105,7 @@ function combineChunks(chunks: RutaResponse[] | undefined): RutaResponse | null 
       base.resultadoSA.costoFinal += c.resultadoSA.costoFinal;
       base.resultadoSA.tiempoEjecucionMs += c.resultadoSA.tiempoEjecucionMs;
       base.resultadoSA.enviosAsignados += c.resultadoSA.enviosAsignados;
+      base.resultadoSA.enviosNoAceptados = (base.resultadoSA.enviosNoAceptados || 0) + (c.resultadoSA.enviosNoAceptados || 0);
       base.resultadoSA.totalEnvios += c.resultadoSA.totalEnvios;
       base.resultadoSA.rutasMuestra.push(...c.resultadoSA.rutasMuestra);
       if (base.resultadoSA.costoInicial > 0) {
@@ -116,6 +117,7 @@ function combineChunks(chunks: RutaResponse[] | undefined): RutaResponse | null 
       base.resultadoALNS.costoFinal += c.resultadoALNS.costoFinal;
       base.resultadoALNS.tiempoEjecucionMs += c.resultadoALNS.tiempoEjecucionMs;
       base.resultadoALNS.enviosAsignados += c.resultadoALNS.enviosAsignados;
+      base.resultadoALNS.enviosNoAceptados = (base.resultadoALNS.enviosNoAceptados || 0) + (c.resultadoALNS.enviosNoAceptados || 0);
       base.resultadoALNS.totalEnvios += c.resultadoALNS.totalEnvios;
       base.resultadoALNS.rutasMuestra.push(...c.resultadoALNS.rutasMuestra);
       base.resultadoALNS.mensajeColapso = c.resultadoALNS.mensajeColapso || base.resultadoALNS.mensajeColapso;

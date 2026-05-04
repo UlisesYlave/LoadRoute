@@ -32,7 +32,8 @@ public class RuteoAsyncJobService {
                                     List<MultipartFile> enviosFiles,
                                     int escenario,
                                     String fechaInicio,
-                                    String fechaFin) throws IOException {
+                                    String fechaFin,
+                                    String algoritmos) throws IOException {
         String jobId = UUID.randomUUID().toString();
         SimulacionJobDTO job = new SimulacionJobDTO(jobId, "PENDING", 0, "Preparando archivos...");
         jobs.put(jobId, job);
@@ -59,6 +60,7 @@ public class RuteoAsyncJobService {
                         escenario,
                         fechaInicio,
                         fechaFin,
+                        algoritmos,
                         new RuteoAlgoritmoService.ProgressReporter() {
                             @Override
                             public void update(int progress, String message) {

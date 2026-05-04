@@ -75,7 +75,7 @@ public class RuteoAlgoritmoService {
                                           int escenario,
                                           String fechaInicio,
                                           String fechaFin) throws IOException {
-        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, null);
+        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, "ambos", null);
     }
 
     public List<RutaResponseDTO> ejecutarRuteo(InputStream aeropuertosIS,
@@ -84,7 +84,19 @@ public class RuteoAlgoritmoService {
                                           int escenario,
                                           String fechaInicio,
                                           String fechaFin,
+                                          String algoritmos) throws IOException {
+        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, algoritmos, null);
+    }
+
+    public List<RutaResponseDTO> ejecutarRuteo(InputStream aeropuertosIS,
+                                          InputStream vuelosIS,
+                                          List<MultipartFile> enviosFiles,
+                                          int escenario,
+                                          String fechaInicio,
+                                          String fechaFin,
+                                          String algoritmos,
                                           ProgressReporter progress) throws IOException {
+        String seleccionAlgoritmos = normalizarAlgoritmos(algoritmos);
         report(progress, 8, "Parseando archivos de datos...");
         // ── 1. Parsear archivos de datos ─────────────────────────────────────
         LOG.info("Parseando archivos de datos...");
@@ -146,10 +158,10 @@ public class RuteoAlgoritmoService {
         LocalDate fechaInicioRango = parsearFechaInicio(fechaInicio).toLocalDate();
         List<RutaResponseDTO> chunks = new ArrayList<>();
         switch (escenario) {
-            case 1 -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+            case 1 -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango, seleccionAlgoritmos);
             case 2 -> chunks = ejecutarEscenario2(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
             case 3 -> chunks = ejecutarEscenario3(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
-            default -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+            default -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango, seleccionAlgoritmos);
         }
 
         if (!chunks.isEmpty()) {
@@ -177,6 +189,27 @@ public class RuteoAlgoritmoService {
 
     private void report(ProgressReporter progress, int pct, String message) {
         if (progress != null) progress.update(pct, message);
+    }
+
+    private String normalizarAlgoritmos(String algoritmos) {
+        if (algoritmos == null || algoritmos.isBlank()) return "ambos";
+        String valor = algoritmos.trim().toLowerCase(Locale.ROOT);
+        if (valor.equals("sa") || valor.equals("alns") || valor.equals("ambos")) return valor;
+        LOG.warning("algoritmos invalido '" + algoritmos + "'. Valores esperados: sa, alns, ambos. Se usara ambos.");
+        return "ambos";
+    }
+
+    private boolean ejecutarSA(String algoritmos) {
+        return algoritmos.equals("sa") || algoritmos.equals("ambos");
+    }
+
+    private boolean ejecutarALNS(String algoritmos) {
+        return algoritmos.equals("alns") || algoritmos.equals("ambos");
+    }
+
+    private void retirarEnviosProcesados(Map<String, Envio> pendientes, SolucionEstado sol) {
+        for (String id : sol.getIdsAsignados()) pendientes.remove(id);
+        for (String id : sol.getIdsNoAceptados()) pendientes.remove(id);
     }
 
     private List<Vuelo> clonarVuelos(List<Vuelo> originales) {
@@ -267,52 +300,58 @@ public class RuteoAlgoritmoService {
 
     private List<RutaResponseDTO> ejecutarEscenario1(Map<LocalDate, Map<String, Envio>> enviosPorDia,
                                     Collection<Aeropuerto> aeropuertos, List<Vuelo> vuelos,
-                                    RutaResponseDTO baseResponse, ProgressReporter progress, LocalDate fechaInicioRango) {
+                                    RutaResponseDTO baseResponse, ProgressReporter progress, LocalDate fechaInicioRango,
+                                    String algoritmos) {
         // E1: Simulación de periodo limpia — SA vs ALNS sin cancelaciones
-        List<Vuelo> vuelosSA   = clonarVuelos(vuelos);
-        List<Vuelo> vuelosALNS = clonarVuelos(vuelos);
-        RedLogistica redSA   = new RedLogistica(aeropuertos, vuelosSA);
-        RedLogistica redALNS = new RedLogistica(aeropuertos, vuelosALNS);
-        Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
-        Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        boolean runSA = ejecutarSA(algoritmos);
+        boolean runALNS = ejecutarALNS(algoritmos);
+        List<Vuelo> vuelosSA = runSA ? clonarVuelos(vuelos) : Collections.emptyList();
+        List<Vuelo> vuelosALNS = runALNS ? clonarVuelos(vuelos) : Collections.emptyList();
+        RedLogistica redSA = runSA ? new RedLogistica(aeropuertos, vuelosSA) : null;
+        RedLogistica redALNS = runALNS ? new RedLogistica(aeropuertos, vuelosALNS) : null;
+        Map<String, Envio> pendientesSA = runSA ? new LinkedHashMap<>() : null;
+        Map<String, Envio> pendientesALNS = runALNS ? new LinkedHashMap<>() : null;
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = runSA ? new HashMap<>() : null;
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = runALNS ? new HashMap<>() : null;
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
 
         for (Map.Entry<LocalDate, Map<String, Envio>> entry : enviosPorDia.entrySet()) {
             LocalDate dia = entry.getKey();
-            pendientesSA.putAll(entry.getValue());
-            pendientesALNS.putAll(entry.getValue());
+            if (runSA) pendientesSA.putAll(entry.getValue());
+            if (runALNS) pendientesALNS.putAll(entry.getValue());
             diaCount++;
             int diaOffset = (int) fechaInicioRango.until(dia, java.time.temporal.ChronoUnit.DAYS);
-            long tiempoMin = Math.min(15L, Math.max(1L, pendientesSA.size() / 150L));
-
-            SimulatedAnnealing sa = new SimulatedAnnealing(redSA)
-                    .setTemperaturaInicial(1_000.0).setAlfa(0.995)
-                    .setTemperaturaMinima(1.0).setTiempoMaxMinutos(tiempoMin);
-            report(progress, 35 + (25 * diaCount / totalDias), "E1-SA dia: " + dia);
-            long t0 = System.currentTimeMillis();
-            SolucionEstado solSA = sa.optimizar(pendientesSA);
-            long msSA = System.currentTimeMillis() - t0;
-
-            ALNS alns = new ALNS(redALNS)
-                    .setMaxIteraciones(500).setGradoDestruccion(0.25)
-                    .setTemperaturaInicial(200.0).setTiempoMaxMinutos(tiempoMin);
-            report(progress, 35 + (50 * diaCount / totalDias), "E1-ALNS dia: " + dia);
-            long t1 = System.currentTimeMillis();
-            SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS);
-            long msALNS = System.currentTimeMillis() - t1;
+            long tiempoMin = Math.min(15L, Math.max(1L, (runSA ? pendientesSA.size() : pendientesALNS.size()) / 150L));
 
             RutaResponseDTO chunk = clonarBaseResponse(baseResponse, dia);
-            chunk.setTotalEnviosCargados(pendientesSA.size());
-            chunk.setResultadoSA(buildResultado("SA (Periodo)", sa.getCostoInicial(), sa.getCostoFinal(),
-                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, Collections.emptyList()));
-            chunk.setResultadoALNS(buildResultado("ALNS (Periodo)", alns.getCostoInicial(), alns.getCostoFinal(),
-                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, Collections.emptyList()));
+            chunk.setTotalEnviosCargados(runSA ? pendientesSA.size() : pendientesALNS.size());
+            if (runSA) {
+                SimulatedAnnealing sa = new SimulatedAnnealing(redSA)
+                        .setTemperaturaInicial(1_000.0).setAlfa(0.995)
+                        .setTemperaturaMinima(1.0).setTiempoMaxMinutos(tiempoMin);
+                report(progress, 35 + (25 * diaCount / totalDias), "E1-SA dia: " + dia);
+                long t0 = System.currentTimeMillis();
+                SolucionEstado solSA = sa.optimizar(pendientesSA);
+                long msSA = System.currentTimeMillis() - t0;
+                chunk.setResultadoSA(buildResultado("SA (Periodo)", sa.getCostoInicial(), sa.getCostoFinal(),
+                        sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, Collections.emptyList(), reservasSA));
+                retirarEnviosProcesados(pendientesSA, solSA);
+            }
+            if (runALNS) {
+                ALNS alns = new ALNS(redALNS)
+                        .setMaxIteraciones(500).setGradoDestruccion(0.25)
+                        .setTemperaturaInicial(200.0).setTiempoMaxMinutos(tiempoMin);
+                report(progress, 35 + (50 * diaCount / totalDias), "E1-ALNS dia: " + dia);
+                long t1 = System.currentTimeMillis();
+                SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS);
+                long msALNS = System.currentTimeMillis() - t1;
+                chunk.setResultadoALNS(buildResultado("ALNS (Periodo)", alns.getCostoInicial(), alns.getCostoFinal(),
+                        alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, Collections.emptyList(), reservasALNS));
+                retirarEnviosProcesados(pendientesALNS, solALNS);
+            }
             chunks.add(chunk);
             if (progress != null) progress.onChunk(chunk);
-
-            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
-            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
         }
         return chunks;
     }
@@ -342,6 +381,8 @@ public class RuteoAlgoritmoService {
         Set<Integer> canceladosAcumulados = new HashSet<>();
         Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
         Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = new HashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = new HashMap<>();
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
 
@@ -383,16 +424,16 @@ public class RuteoAlgoritmoService {
             List<Integer> idsCanceladosList = new ArrayList<>(canceladosAcumulados);
             chunk.setResultadoSA(buildResultado("SA (Dia a Dia)",
                     sa.getCostoInicial(), sa.getCostoFinal(),
-                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosList));
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosList, reservasSA));
             chunk.setResultadoALNS(buildResultado("ALNS (Dia a Dia)",
                     alns.getCostoInicial(), alns.getCostoFinal(),
-                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosList));
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosList, reservasALNS));
 
             chunks.add(chunk);
             if (progress != null) progress.onChunk(chunk);
 
-            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
-            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
+            retirarEnviosProcesados(pendientesSA, solSA);
+            retirarEnviosProcesados(pendientesALNS, solALNS);
         }
         return chunks;
     }
@@ -411,6 +452,8 @@ public class RuteoAlgoritmoService {
         Set<Integer> canceladosALNS = new HashSet<>();
         Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
         Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasSA = new HashMap<>();
+        Map<String, List<SolucionEstado.OccupancyEvent>> reservasALNS = new HashMap<>();
         List<RutaResponseDTO> chunks = new ArrayList<>();
         int diaCount = 0, totalDias = enviosPorDia.size();
         int totalVuelos = vuelos.size(), canceladosTotal = 0;
@@ -467,16 +510,16 @@ public class RuteoAlgoritmoService {
             List<Integer> idsCanceladosSA = new ArrayList<>(canceladosSA);
             List<Integer> idsCanceladosALNS = new ArrayList<>(canceladosALNS);
             chunk.setResultadoSA(buildResultado("SA (Colapso)", sa.getCostoInicial(), sa.getCostoFinal(),
-                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosSA));
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosSA, reservasSA));
             ResultadoAlgoritmo resALNS = buildResultado("ALNS (Colapso)", alns.getCostoInicial(), alns.getCostoFinal(),
-                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosALNS);
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosALNS, reservasALNS);
             resALNS.setMensajeColapso(mensajeColapso);
             chunk.setResultadoALNS(resALNS);
             chunks.add(chunk);
             if (progress != null) progress.onChunk(chunk);
 
-            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
-            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
+            retirarEnviosProcesados(pendientesSA, solSA);
+            retirarEnviosProcesados(pendientesALNS, solALNS);
         }
         return chunks;
     }
@@ -491,15 +534,19 @@ public class RuteoAlgoritmoService {
                                                SolucionEstado sol,
                                                Map<String, Envio> envios,
                                                int diaOffset,
-                                               List<Integer> canceladosIds) {
+                                               List<Integer> canceladosIds,
+                                               Map<String, List<SolucionEstado.OccupancyEvent>> reservasAeropuerto) {
+        int noAceptados = sol.aplicarRestriccionCapacidadAeropuertos(reservasAeropuerto);
+        double costoFinalAjustado = sol.evaluarCostoTotal();
         ResultadoAlgoritmo r = new ResultadoAlgoritmo();
         r.setAlgoritmo(nombre);
         r.setCostoInicial(costoIni);
-        r.setCostoFinal(costoFin);
-        r.setMejoraRelativa(mejora);
+        r.setCostoFinal(costoFinalAjustado);
+        r.setMejoraRelativa(costoIni > 0 ? ((costoIni - costoFinalAjustado) / costoIni) * 100.0 : mejora);
         r.setIteraciones(iter);
         r.setTiempoEjecucionMs(ms);
         r.setEnviosAsignados(sol.getEnviosAsignados());
+        r.setEnviosNoAceptados(noAceptados);
         r.setTotalEnvios(sol.getTotalEnvios());
         r.setMensajeColapso("");
         r.setVuelosCanceladosIds(canceladosIds);
