@@ -217,7 +217,6 @@ public class Parsers {
                 String minuto = partes[3].trim();
                 String codDestino = partes[4].trim();
                 int maletas = Integer.parseInt(partes[5].trim());
-                maletas = maletas * 4;
                 String idCliente = partes[6].trim();
 
                 Aeropuerto destino = aeropuertos.get(codDestino);

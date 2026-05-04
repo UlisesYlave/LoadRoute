@@ -1,13 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { RutaMuestra, TramoDTO } from '@/types/rutas';
 
+function absToHHMM(absMinutos: number): string {
+    const minutosDia = ((Math.floor(absMinutos) % 1440) + 1440) % 1440;
+    const h = Math.floor(minutosDia / 60);
+    const m = minutosDia % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} GMT`;
+}
+
+function getFechaLocalFromAbs(minutos: number, fechaInicioRaw: string): string {
+    if (!fechaInicioRaw || fechaInicioRaw.length < 8) return '';
+    const y = parseInt(fechaInicioRaw.slice(0, 4));
+    const m = parseInt(fechaInicioRaw.slice(4, 6)) - 1;
+    const d = parseInt(fechaInicioRaw.slice(6, 8));
+    const date = new Date(Date.UTC(y, m, d)); 
+    date.setUTCMinutes(date.getUTCMinutes() + minutos);
+    const yy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${dd}/${mm}/${yy}`;
+}
+
 interface ModalVueloProps {
   vuelo: TramoDTO | null;
   rutasActivas: RutaMuestra[];
   onClose: () => void;
+  fechaInicioRaw: string;
 }
 
-export default function ModalVuelo({ vuelo, rutasActivas, onClose }: ModalVueloProps) {
+export default function ModalVuelo({ vuelo, rutasActivas, onClose, fechaInicioRaw }: ModalVueloProps) {
   const [position, setPosition] = useState({ x: 20, y: 80 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
@@ -92,13 +113,13 @@ export default function ModalVuelo({ vuelo, rutasActivas, onClose }: ModalVueloP
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Despegue</p>
-              <p className="text-xl font-mono text-slate-200">{vuelo.horaSalidaLocal}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{vuelo.salidaMinutosGMT}m GMT</p>
+              <p className="text-xl font-mono text-slate-200">{absToHHMM(vuelo.salidaAbsMinutos)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{getFechaLocalFromAbs(vuelo.salidaAbsMinutos, fechaInicioRaw)} • {vuelo.horaSalidaLocal} Local</p>
             </div>
             <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Aterrizaje</p>
-              <p className="text-xl font-mono text-slate-200">{vuelo.horaLlegadaLocal}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">{vuelo.llegadaMinutosGMT}m GMT</p>
+              <p className="text-xl font-mono text-slate-200">{absToHHMM(vuelo.llegadaAbsMinutos)}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{getFechaLocalFromAbs(vuelo.llegadaAbsMinutos, fechaInicioRaw)} • {vuelo.horaLlegadaLocal} Local</p>
             </div>
           </div>
           

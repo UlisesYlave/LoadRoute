@@ -37,11 +37,20 @@ function formatFechaSimulacion(fechaInicioRaw: string, simDia: number): string {
   const y = parseInt(fechaInicioRaw.slice(0, 4));
   const m = parseInt(fechaInicioRaw.slice(4, 6)) - 1;
   const d = parseInt(fechaInicioRaw.slice(6, 8));
-  const base = new Date(y, m, d);
-  base.setDate(base.getDate() + simDia);
+  const base = new Date(Date.UTC(y, m, d));
+  base.setUTCDate(base.getUTCDate() + simDia);
   return base.toLocaleDateString('es-PE', {
-    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
+    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC'
   });
+}
+
+function formatRawDateToShort(raw: string): string {
+  if (!raw || raw.length < 8) return '';
+  const y = parseInt(raw.slice(0, 4));
+  const m = parseInt(raw.slice(4, 6)) - 1;
+  const d = parseInt(raw.slice(6, 8));
+  const base = new Date(Date.UTC(y, m, d));
+  return base.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
 
 function getDiasRango(fechaInicioRaw?: string, fechaFinRaw?: string): number | null {
@@ -503,11 +512,23 @@ export default function Home() {
 
             {/* Overlay de Tiempo en el Mapa */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-[#0c1a30]/80 backdrop-blur-md border border-slate-700/50 rounded-xl p-3 shadow-lg pointer-events-none flex gap-6 items-center">
-              <div className="text-right">
+              
+              <div className="text-left">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                  Periodo de Simulación
+                </p>
+                <p className="text-xs font-medium text-slate-300 capitalize">
+                  {formatRawDateToShort(fechaInicioRaw)} <span className="text-slate-500 mx-1">→</span> {formatRawDateToShort(fechaFinRaw)}
+                </p>
+              </div>
+
+              <div className="w-px h-8 bg-slate-700/50"></div>
+
+              <div className="text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                   Tiempo Simulado
                 </p>
-                <div className="flex items-baseline justify-end gap-2">
+                <div className="flex items-baseline justify-center gap-2">
                   <span className="text-xs text-slate-300 capitalize">
                     {formatFechaSimulacion(fechaInicioRaw, simDia)}
                   </span>
@@ -516,8 +537,10 @@ export default function Home() {
                   </span>
                 </div>
               </div>
+              
               <div className="w-px h-8 bg-slate-700/50"></div>
-              <div>
+              
+              <div className="text-center">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                   Tiempo Reproducción
                 </p>
@@ -588,6 +611,7 @@ export default function Home() {
         vuelo={vueloModal}
         rutasActivas={rutasActivas}
         onClose={() => setVueloModal(null)}
+        fechaInicioRaw={fechaInicioRaw}
       />
     </div>
   );
