@@ -47,6 +47,12 @@ public class RuteoAlgoritmoService {
 
     private static final Logger LOG = Logger.getLogger(RuteoAlgoritmoService.class.getName());
 
+    @FunctionalInterface
+    public interface ProgressReporter {
+        void update(int progress, String message);
+        default void onChunk(RutaResponseDTO chunk) {}
+    }
+
     /** Formato esperado para fechaInicio y fechaFin: YYYYMMDD */
     private static final DateTimeFormatter FMT_FECHA = DateTimeFormatter.ofPattern("yyyyMMdd");
 
@@ -63,19 +69,28 @@ public class RuteoAlgoritmoService {
      * @param fechaInicio   YYYYMMDD o null — filtra envíos desde esta fecha local (inclusive)
      * @param fechaFin      YYYYMMDD o null — filtra envíos hasta esta fecha local (inclusive)
      */
-    public RutaResponseDTO ejecutarRuteo(InputStream aeropuertosIS,
+    public List<RutaResponseDTO> ejecutarRuteo(InputStream aeropuertosIS,
                                           InputStream vuelosIS,
                                           List<MultipartFile> enviosFiles,
                                           int escenario,
                                           String fechaInicio,
                                           String fechaFin) throws IOException {
-        // ── 1. Reset de IDs de vuelos ────────────────────────────────────────
-        Vuelo.resetContador();
+        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, null);
+    }
 
-        // ── 2. Parsear archivos de datos ─────────────────────────────────────
+    public List<RutaResponseDTO> ejecutarRuteo(InputStream aeropuertosIS,
+                                          InputStream vuelosIS,
+                                          List<MultipartFile> enviosFiles,
+                                          int escenario,
+                                          String fechaInicio,
+                                          String fechaFin,
+                                          ProgressReporter progress) throws IOException {
+        report(progress, 8, "Parseando archivos de datos...");
+        // ── 1. Parsear archivos de datos ─────────────────────────────────────
         LOG.info("Parseando archivos de datos...");
         Map<String, Aeropuerto> aeropuertos = Parsers.parsearAeropuertos(aeropuertosIS);
         List<Vuelo>             vuelos      = Parsers.parsearVuelos(vuelosIS, aeropuertos);
+        report(progress, 18, "Aeropuertos y vuelos cargados. Leyendo envios...");
 
         Map<String, Envio> enviosCrudos = new LinkedHashMap<>();
         for (MultipartFile file : enviosFiles) {
@@ -88,6 +103,7 @@ public class RuteoAlgoritmoService {
 
         // ── 3. Filtrar por fecha (HORA LOCAL del aeropuerto, no GMT) ─────────
         Map<String, Envio> envios = filtrarEnviosPorFecha(enviosCrudos, fechaInicio, fechaFin);
+        report(progress, 30, String.format("Filtro aplicado: %d envios en el rango.", envios.size()));
 
         LOG.info(String.format(
             "Datos cargados: %d aeropuertos | %d vuelos | %d envíos totales → %d tras filtro [%s a %s]",
@@ -101,11 +117,12 @@ public class RuteoAlgoritmoService {
             RutaResponseDTO vacía = new RutaResponseDTO();
             vacía.setEscenario(escenario);
             vacía.setTotalEnviosCargados(0);
-            return vacía;
+            return Collections.singletonList(vacía);
         }
 
         // ── 4. Construir red logística ────────────────────────────────────────
         RedLogistica red = new RedLogistica(aeropuertos.values(), vuelos);
+        report(progress, 35, "Red logistica construida.");
 
         // ── 5. Armar respuesta base ───────────────────────────────────────────
         RutaResponseDTO response = new RutaResponseDTO();
@@ -118,15 +135,56 @@ public class RuteoAlgoritmoService {
             aeropuertos.values().stream().map(this::mapAeropuertoDTO).collect(Collectors.toList())
         );
 
-        // ── 6. Ejecutar escenario ─────────────────────────────────────────────
-        switch (escenario) {
-            case 1 -> ejecutarEscenario1(envios, red, response);
-            case 2 -> ejecutarEscenario2(envios, red, response);
-            case 3 -> ejecutarEscenario3(envios, vuelos, red, response);
-            default -> ejecutarEscenario1(envios, red, response);
+        // ── 6. Agrupar envíos por día (Chunking) ──────────────────────────────
+        Map<LocalDate, Map<String, Envio>> enviosPorDia = new TreeMap<>();
+        for (Envio e : envios.values()) {
+            LocalDate dia = e.getFechaHoraRecepcion().toLocalDate();
+            enviosPorDia.computeIfAbsent(dia, k -> new LinkedHashMap<>()).put(e.getId(), e);
         }
 
-        return response;
+        // ── 7. Ejecutar escenario ─────────────────────────────────────────────
+        LocalDate fechaInicioRango = parsearFechaInicio(fechaInicio).toLocalDate();
+        List<RutaResponseDTO> chunks = new ArrayList<>();
+        switch (escenario) {
+            case 1 -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+            case 2 -> chunks = ejecutarEscenario2(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+            case 3 -> chunks = ejecutarEscenario3(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+            default -> chunks = ejecutarEscenario1(enviosPorDia, aeropuertos.values(), vuelos, response, progress, fechaInicioRango);
+        }
+
+        if (!chunks.isEmpty()) {
+            chunks.get(0).setVuelosMaestros(vuelos.stream().map(v -> {
+                RutaResponseDTO.TramoDTO t = new RutaResponseDTO.TramoDTO();
+                t.setOrigen(v.getOrigen().getCodigo());
+                t.setDestino(v.getDestino().getCodigo());
+                t.setOrigenLat(v.getOrigen().getLatitud());
+                t.setOrigenLon(v.getOrigen().getLongitud());
+                t.setDestinoLat(v.getDestino().getLatitud());
+                t.setDestinoLon(v.getDestino().getLongitud());
+                t.setCapacidad(v.getCapacidadMax());
+                t.setVueloId(v.getId());
+                t.setHoraSalidaLocal(v.getHoraSalidaLocal().toString());
+                t.setHoraLlegadaLocal(v.getHoraLlegadaLocal().toString());
+                t.setSalidaMinutosGMT(v.getSalidaMinutosGMT());
+                t.setLlegadaMinutosGMT(v.getLlegadaMinutosGMT());
+                return t;
+            }).collect(Collectors.toList()));
+        }
+
+        report(progress, 98, "Preparando respuesta para el dashboard...");
+        return chunks;
+    }
+
+    private void report(ProgressReporter progress, int pct, String message) {
+        if (progress != null) progress.update(pct, message);
+    }
+
+    private List<Vuelo> clonarVuelos(List<Vuelo> originales) {
+        List<Vuelo> copia = new ArrayList<>();
+        for (Vuelo v : originales) {
+            copia.add(v.clonar());
+        }
+        return copia;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -207,129 +265,220 @@ public class RuteoAlgoritmoService {
     // ESCENARIOS
     // ══════════════════════════════════════════════════════════════════════════
 
-    private void ejecutarEscenario1(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response) {
-        int envioCount = envios.size();
-        // Tiempo proporcional al tamaño: mínimo 1 min, máximo 90 min
-        long tiempoMin = Math.min(90L, Math.max(1L, envioCount / 150L));
+    private List<RutaResponseDTO> ejecutarEscenario1(Map<LocalDate, Map<String, Envio>> enviosPorDia,
+                                    Collection<Aeropuerto> aeropuertos, List<Vuelo> vuelos,
+                                    RutaResponseDTO baseResponse, ProgressReporter progress, LocalDate fechaInicioRango) {
+        // E1: Simulación de periodo limpia — SA vs ALNS sin cancelaciones
+        List<Vuelo> vuelosSA   = clonarVuelos(vuelos);
+        List<Vuelo> vuelosALNS = clonarVuelos(vuelos);
+        RedLogistica redSA   = new RedLogistica(aeropuertos, vuelosSA);
+        RedLogistica redALNS = new RedLogistica(aeropuertos, vuelosALNS);
+        Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
+        Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        List<RutaResponseDTO> chunks = new ArrayList<>();
+        int diaCount = 0, totalDias = enviosPorDia.size();
 
-        SimulatedAnnealing sa = new SimulatedAnnealing(red)
-                .setTemperaturaInicial(1_000.0)
-                .setAlfa(0.995)
-                .setTemperaturaMinima(1.0)
-                .setTiempoMaxMinutos(tiempoMin);
+        for (Map.Entry<LocalDate, Map<String, Envio>> entry : enviosPorDia.entrySet()) {
+            LocalDate dia = entry.getKey();
+            pendientesSA.putAll(entry.getValue());
+            pendientesALNS.putAll(entry.getValue());
+            diaCount++;
+            int diaOffset = (int) fechaInicioRango.until(dia, java.time.temporal.ChronoUnit.DAYS);
+            long tiempoMin = Math.min(15L, Math.max(1L, pendientesSA.size() / 150L));
 
-        long t0 = System.currentTimeMillis();
-        SolucionEstado sol = sa.optimizar(envios);
-        long ms = System.currentTimeMillis() - t0;
+            SimulatedAnnealing sa = new SimulatedAnnealing(redSA)
+                    .setTemperaturaInicial(1_000.0).setAlfa(0.995)
+                    .setTemperaturaMinima(1.0).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (25 * diaCount / totalDias), "E1-SA dia: " + dia);
+            long t0 = System.currentTimeMillis();
+            SolucionEstado solSA = sa.optimizar(pendientesSA);
+            long msSA = System.currentTimeMillis() - t0;
 
-        response.setResultadoSA(buildResultado("Simulated Annealing",
-                sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), ms, sol, envios));
+            ALNS alns = new ALNS(redALNS)
+                    .setMaxIteraciones(500).setGradoDestruccion(0.25)
+                    .setTemperaturaInicial(200.0).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (50 * diaCount / totalDias), "E1-ALNS dia: " + dia);
+            long t1 = System.currentTimeMillis();
+            SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS);
+            long msALNS = System.currentTimeMillis() - t1;
+
+            RutaResponseDTO chunk = clonarBaseResponse(baseResponse, dia);
+            chunk.setTotalEnviosCargados(pendientesSA.size());
+            chunk.setResultadoSA(buildResultado("SA (Periodo)", sa.getCostoInicial(), sa.getCostoFinal(),
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, Collections.emptyList()));
+            chunk.setResultadoALNS(buildResultado("ALNS (Periodo)", alns.getCostoInicial(), alns.getCostoFinal(),
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, Collections.emptyList()));
+            chunks.add(chunk);
+            if (progress != null) progress.onChunk(chunk);
+
+            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
+            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
+        }
+        return chunks;
     }
 
-    private void ejecutarEscenario2(Map<String, Envio> envios, RedLogistica red,
-                                    RutaResponseDTO response) {
-        int envioCount = envios.size();
-        long tiempoMin = Math.min(45L, Math.max(1L, envioCount / 150L));
-
-        SimulatedAnnealing sa = new SimulatedAnnealing(red)
-                .setTemperaturaInicial(1_000.0)
-                .setAlfa(0.995)
-                .setTemperaturaMinima(0.1)
-                .setTiempoMaxMinutos(tiempoMin);
-
-        long t0 = System.currentTimeMillis();
-        SolucionEstado solSA = sa.optimizar(envios);
-        long msSA = System.currentTimeMillis() - t0;
-
-        response.setResultadoSA(buildResultado("Simulated Annealing",
-                sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, envios));
-
-        ALNS alns = new ALNS(red)
-                .setMaxIteraciones(500)
-                .setGradoDestruccion(0.25)
-                .setTemperaturaInicial(200.0)
-                .setTiempoMaxMinutos(tiempoMin);
-
-        long t1 = System.currentTimeMillis();
-        SolucionEstado solALNS = alns.optimizar(envios, solSA.clonar());
-        long msALNS = System.currentTimeMillis() - t1;
-
-        response.setResultadoALNS(buildResultado("ALNS",
-                alns.getCostoInicial(), alns.getCostoFinal(),
-                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, envios));
+    private RutaResponseDTO clonarBaseResponse(RutaResponseDTO base, LocalDate dia) {
+        // Formato YYYYMMDD para que el frontend parsee correctamente
+        String fechaStr = dia.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        RutaResponseDTO c = new RutaResponseDTO();
+        c.setEscenario(base.getEscenario());
+        c.setTotalVuelos(base.getTotalVuelos());
+        c.setAeropuertos(base.getAeropuertos());
+        c.setFechaInicio(fechaStr);
+        c.setFechaFin(fechaStr);
+        return c;
     }
 
-    private void ejecutarEscenario3(Map<String, Envio> envios, List<Vuelo> todosVuelos,
-                                    RedLogistica red, RutaResponseDTO response) {
-        int envioCount = envios.size();
-        long tiempoMin = Math.min(30L, Math.max(1L, envioCount / 200L));
+    private List<RutaResponseDTO> ejecutarEscenario2(Map<LocalDate, Map<String, Envio>> enviosPorDia,
+                                    Collection<Aeropuerto> aeropuertos, List<Vuelo> vuelos,
+                                    RutaResponseDTO baseResponse, ProgressReporter progress, LocalDate fechaInicioRango) {
+        // E2: Operación día a día — cancelación leve 1%/día, SA vs ALNS
+        List<Vuelo> vuelosSA   = clonarVuelos(vuelos);
+        List<Vuelo> vuelosALNS = clonarVuelos(vuelos);
+        List<Vuelo> disponiblesSA   = new ArrayList<>(vuelosSA);
+        List<Vuelo> disponiblesALNS = new ArrayList<>(vuelosALNS);
+        Collections.shuffle(disponiblesSA,   new Random(123));
+        Collections.shuffle(disponiblesALNS, new Random(123));
+        Set<Integer> canceladosAcumulados = new HashSet<>();
+        Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
+        Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        List<RutaResponseDTO> chunks = new ArrayList<>();
+        int diaCount = 0, totalDias = enviosPorDia.size();
 
-        SimulatedAnnealing sa = new SimulatedAnnealing(red)
-                .setTemperaturaInicial(500.0)
-                .setAlfa(0.99)
-                .setTiempoMaxMinutos(tiempoMin);
+        for (Map.Entry<LocalDate, Map<String, Envio>> entry : enviosPorDia.entrySet()) {
+            LocalDate dia = entry.getKey();
+            pendientesSA.putAll(entry.getValue());
+            pendientesALNS.putAll(entry.getValue());
+            diaCount++;
+            int diaOffset = (int) fechaInicioRango.until(dia, java.time.temporal.ChronoUnit.DAYS);
+            // Cancelar 1% de la flota cada día (capacidad → 0)
+            int cancelar = Math.max(1, (int)(vuelos.size() * 0.01));
+            for (int i = 0; i < cancelar && !disponiblesSA.isEmpty(); i++) {
+                Vuelo vsa = disponiblesSA.remove(0);
+                vsa.setCapacidadMax(0);
+                Vuelo valns = disponiblesALNS.remove(0);
+                valns.setCapacidadMax(0);
+                canceladosAcumulados.add(vsa.getId());
+            }
+            long tiempoMin = Math.min(10L, Math.max(1L, pendientesSA.size() / 150L));
 
-        long t0 = System.currentTimeMillis();
-        SolucionEstado solBase = sa.optimizar(envios);
-        long msSA = System.currentTimeMillis() - t0;
+            SimulatedAnnealing sa = new SimulatedAnnealing(new RedLogistica(aeropuertos, vuelosSA))
+                    .setTemperaturaInicial(1_000.0).setAlfa(0.995)
+                    .setTemperaturaMinima(0.1).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (25 * diaCount / totalDias), "E2-SA dia: " + dia);
+            long t0 = System.currentTimeMillis();
+            SolucionEstado solSA = sa.optimizar(pendientesSA);
+            long msSA = System.currentTimeMillis() - t0;
 
-        response.setResultadoSA(buildResultado("SA (Día Normal)",
-                sa.getCostoInicial(), sa.getCostoFinal(),
-                sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solBase, envios));
+            ALNS alns = new ALNS(new RedLogistica(aeropuertos, vuelosALNS))
+                    .setMaxIteraciones(500).setGradoDestruccion(0.25)
+                    .setTemperaturaInicial(200.0).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (50 * diaCount / totalDias), "E2-ALNS dia: " + dia);
+            long t1 = System.currentTimeMillis();
+            SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS);
+            long msALNS = System.currentTimeMillis() - t1;
 
-        // Bucle de colapso progresivo
-        List<Vuelo> vuelosRestantes = new ArrayList<>(todosVuelos);
-        Collections.shuffle(vuelosRestantes, new Random(42));
+            RutaResponseDTO chunk = clonarBaseResponse(baseResponse, dia);
+            chunk.setTotalEnviosCargados(pendientesSA.size());
+            List<Integer> idsCanceladosList = new ArrayList<>(canceladosAcumulados);
+            chunk.setResultadoSA(buildResultado("SA (Dia a Dia)",
+                    sa.getCostoInicial(), sa.getCostoFinal(),
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosList));
+            chunk.setResultadoALNS(buildResultado("ALNS (Dia a Dia)",
+                    alns.getCostoInicial(), alns.getCostoFinal(),
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosList));
 
-        ALNS alns = new ALNS(red)
-                .setMaxIteraciones(300)
-                .setGradoDestruccion(0.30)
-                .setTemperaturaInicial(150.0)
-                .setTiempoMaxMinutos(tiempoMin);
+            chunks.add(chunk);
+            if (progress != null) progress.onChunk(chunk);
 
-        int totalVuelosInicial = todosVuelos.size();
-        int vuelosCancelados = 0;
+            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
+            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
+        }
+        return chunks;
+    }
+
+    private List<RutaResponseDTO> ejecutarEscenario3(Map<LocalDate, Map<String, Envio>> enviosPorDia,
+                                    Collection<Aeropuerto> aeropuertos, List<Vuelo> vuelos,
+                                    RutaResponseDTO baseResponse, ProgressReporter progress, LocalDate fechaInicioRango) {
+        // E3: Colapso progresivo 5%/día — SA vs ALNS bajo el mismo estrés de red
+        List<Vuelo> vuelosSA   = clonarVuelos(vuelos);
+        List<Vuelo> vuelosALNS = clonarVuelos(vuelos);
+        List<Vuelo> restantesSA   = new ArrayList<>(vuelosSA);
+        List<Vuelo> restantesALNS = new ArrayList<>(vuelosALNS);
+        Collections.shuffle(restantesSA,   new Random(42));
+        Collections.shuffle(restantesALNS, new Random(42));
+        Set<Integer> canceladosSA   = new HashSet<>();
+        Set<Integer> canceladosALNS = new HashSet<>();
+        Map<String, Envio> pendientesSA   = new LinkedHashMap<>();
+        Map<String, Envio> pendientesALNS = new LinkedHashMap<>();
+        List<RutaResponseDTO> chunks = new ArrayList<>();
+        int diaCount = 0, totalDias = enviosPorDia.size();
+        int totalVuelos = vuelos.size(), canceladosTotal = 0;
         boolean colapsado = false;
         String mensajeColapso = "";
-        long t1 = System.currentTimeMillis();
 
-        while (!colapsado && !vuelosRestantes.isEmpty()) {
-            int numACancelar = Math.max(1, (int)(totalVuelosInicial * 0.05));
-            List<Vuelo> cancelados = new ArrayList<>();
-            for (int i = 0; i < numACancelar && !vuelosRestantes.isEmpty(); i++) {
-                cancelados.add(vuelosRestantes.remove(0));
+        for (Map.Entry<LocalDate, Map<String, Envio>> entry : enviosPorDia.entrySet()) {
+            LocalDate dia = entry.getKey();
+            pendientesSA.putAll(entry.getValue());
+            pendientesALNS.putAll(entry.getValue());
+            diaCount++;
+            int diaOffset = (int) fechaInicioRango.until(dia, java.time.temporal.ChronoUnit.DAYS);
+            // Cancelar 5% acumulativo
+            if (!colapsado) {
+                int n = Math.max(1, (int)(totalVuelos * 0.05));
+                for (int i = 0; i < n && !restantesSA.isEmpty(); i++) {
+                    Vuelo vs = restantesSA.remove(0);
+                    Vuelo va = restantesALNS.remove(0);
+                    canceladosSA.add(vs.getId());
+                    canceladosALNS.add(va.getId());
+                    canceladosTotal++;
+                }
             }
-            vuelosCancelados += cancelados.size();
+            long tiempoMin = Math.min(10L, Math.max(1L, pendientesSA.size() / 200L));
 
-            solBase = alns.replanificarColapso(solBase, cancelados, envios);
+            SimulatedAnnealing sa = new SimulatedAnnealing(new RedLogistica(aeropuertos, vuelosSA))
+                    .setTemperaturaInicial(800.0).setAlfa(0.99)
+                    .setTemperaturaMinima(0.5).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (25 * diaCount / totalDias), "E3-SA dia: " + dia);
+            long t0 = System.currentTimeMillis();
+            SolucionEstado solSA = sa.optimizar(pendientesSA);
+            long msSA = System.currentTimeMillis() - t0;
 
-            int huerfanos = solBase.getEnviosSinRuta().size();
-            double proporcion = (double) huerfanos / Math.max(1, envios.size());
+            ALNS alns = new ALNS(new RedLogistica(aeropuertos, vuelosALNS))
+                    .setMaxIteraciones(300).setGradoDestruccion(0.30)
+                    .setTemperaturaInicial(150.0).setTiempoMaxMinutos(tiempoMin);
+            report(progress, 35 + (50 * diaCount / totalDias), "E3-ALNS dia: " + dia);
+            long t1 = System.currentTimeMillis();
+            SolucionEstado solALNS = alns.optimizarDesdeGreedy(pendientesALNS, canceladosALNS);
+            long msALNS = System.currentTimeMillis() - t1;
 
-            if (proporcion > 0.10) {
+            int huerfanos = solALNS.getEnviosSinRuta().size();
+            double proporcion = (double) huerfanos / Math.max(1, pendientesALNS.size());
+            if (proporcion > 0.10 && !colapsado) {
                 colapsado = true;
-                int pctFlota  = (int)((double) vuelosCancelados / totalVuelosInicial * 100);
+                int pctFlota  = (int)((double) canceladosTotal / totalVuelos * 100);
                 int pctHuerfa = (int)(proporcion * 100);
-                mensajeColapso = String.format(
-                    "COLAPSO LOGISTICO: %d envios varados (%d%% del total) tras perder el %d%% de la flota (%d vuelos cancelados).",
-                    huerfanos, pctHuerfa, pctFlota, vuelosCancelados);
-                LOG.warning(mensajeColapso);
+                mensajeColapso = String.format("COLAPSO: %d envios varados (%d%%) tras perder %d%% flota.",
+                        huerfanos, pctHuerfa, pctFlota);
             }
-        }
-        long msALNS = System.currentTimeMillis() - t1;
 
-        if (!colapsado) {
-            mensajeColapso = "Flota agotada completamente sin alcanzar el umbral de colapso (10% de envios huerfanos).";
-        }
+            RutaResponseDTO chunk = clonarBaseResponse(baseResponse, dia);
+            chunk.setTotalEnviosCargados(pendientesSA.size());
+            List<Integer> idsCanceladosSA = new ArrayList<>(canceladosSA);
+            List<Integer> idsCanceladosALNS = new ArrayList<>(canceladosALNS);
+            chunk.setResultadoSA(buildResultado("SA (Colapso)", sa.getCostoInicial(), sa.getCostoFinal(),
+                    sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA, diaOffset, idsCanceladosSA));
+            ResultadoAlgoritmo resALNS = buildResultado("ALNS (Colapso)", alns.getCostoInicial(), alns.getCostoFinal(),
+                    alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solALNS, pendientesALNS, diaOffset, idsCanceladosALNS);
+            resALNS.setMensajeColapso(mensajeColapso);
+            chunk.setResultadoALNS(resALNS);
+            chunks.add(chunk);
+            if (progress != null) progress.onChunk(chunk);
 
-        ResultadoAlgoritmo resColapso = buildResultado("ALNS (Colapso)",
-                alns.getCostoInicial(), alns.getCostoFinal(),
-                alns.getMejoraRelativa(), alns.getIteraciones(), msALNS, solBase, envios);
-        resColapso.setMensajeColapso(mensajeColapso);
-        response.setResultadoALNS(resColapso);
+            for (String id : solSA.getIdsAsignados())   pendientesSA.remove(id);
+            for (String id : solALNS.getIdsAsignados()) pendientesALNS.remove(id);
+        }
+        return chunks;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -340,7 +489,9 @@ public class RuteoAlgoritmoService {
                                                double costoIni, double costoFin,
                                                double mejora, int iter, long ms,
                                                SolucionEstado sol,
-                                               Map<String, Envio> envios) {
+                                               Map<String, Envio> envios,
+                                               int diaOffset,
+                                               List<Integer> canceladosIds) {
         ResultadoAlgoritmo r = new ResultadoAlgoritmo();
         r.setAlgoritmo(nombre);
         r.setCostoInicial(costoIni);
@@ -351,6 +502,7 @@ public class RuteoAlgoritmoService {
         r.setEnviosAsignados(sol.getEnviosAsignados());
         r.setTotalEnvios(sol.getTotalEnvios());
         r.setMensajeColapso("");
+        r.setVuelosCanceladosIds(canceladosIds);
 
         List<RutaMuestra> muestras = new ArrayList<>();
         int count = 0;
@@ -381,6 +533,7 @@ public class RuteoAlgoritmoService {
                 t.setHoraLlegadaLocal(v.getHoraLlegadaLocal().toString());
                 t.setSalidaMinutosGMT(v.getSalidaMinutosGMT());
                 t.setLlegadaMinutosGMT(v.getLlegadaMinutosGMT());
+                t.setDiaOffset(diaOffset);
                 tramos.add(t);
             }
             rm.setTramos(tramos);

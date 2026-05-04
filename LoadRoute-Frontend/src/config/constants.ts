@@ -6,5 +6,6 @@ export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localh
 
 export const API_ENDPOINTS = {
   SIMULAR: `${BACKEND_URL}/api/rutas/simular`,
+  SIMULAR_ASYNC: `${BACKEND_URL}/api/rutas/simular-async`,
   HEALTH: `${BACKEND_URL}/api/rutas/health`,
 };

@@ -70,18 +70,42 @@ public class ALNS {
         SolucionEstado inicio = solucionActual.clonar();
         for (String id : afectados) inicio.removerRuta(id);
 
-        return ejecutarALNS(inicio, todosLosEnvios, afectados);
+        return ejecutarALNS(inicio, todosLosEnvios, afectados, idsCancelados);
     }
 
     public SolucionEstado optimizar(Map<String, Envio> envios,
                                     SolucionEstado solucionInicial) {
         List<String> todosIds = new ArrayList<>(envios.keySet());
-        return ejecutarALNS(solucionInicial, envios, todosIds);
+        return ejecutarALNS(solucionInicial, envios, todosIds, Collections.emptySet());
+    }
+
+    public SolucionEstado optimizarDesdeGreedy(Map<String, Envio> envios) {
+        return optimizarDesdeGreedy(envios, Collections.emptySet());
+    }
+
+    public SolucionEstado optimizarDesdeGreedy(Map<String, Envio> envios, Set<Integer> idsCancelados) {
+        SolucionEstado greedy = construirGreedy(envios, idsCancelados);
+        List<String> todosIds = new ArrayList<>(envios.keySet());
+        return ejecutarALNS(greedy, envios, todosIds, idsCancelados);
+    }
+
+    private SolucionEstado construirGreedy(Map<String, Envio> envios, Set<Integer> idsCancelados) {
+        SolucionEstado sol = new SolucionEstado(envios);
+        for (Envio envio : envios.values()) {
+            List<List<Vuelo>> rutas = red.buscarRutas(envio, true, idsCancelados);
+            if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio, idsCancelados);
+            if (!rutas.isEmpty()) {
+                sol.asignarRuta(envio.getId(), rutas.get(0));
+                for (Vuelo v : rutas.get(0)) v.reservar(envio.getCantidadMaletas());
+            }
+        }
+        return sol;
     }
 
     private SolucionEstado ejecutarALNS(SolucionEstado solucionActual,
                                          Map<String, Envio> envios,
-                                         List<String> idsCandidatos) {
+                                         List<String> idsCandidatos,
+                                         Set<Integer> idsCancelados) {
         long inicio = System.currentTimeMillis();
 
         SolucionEstado mejor  = solucionActual.clonar();
@@ -101,7 +125,7 @@ public class ALNS {
             int opR = seleccionarPorRuleta(pesosReparacion);
 
             SolucionEstado rota = destruir(solucionActual.clonar(), idsCandidatos, q, opD, envios);
-            SolucionEstado reparada = reparar(rota, envios, opR);
+            SolucionEstado reparada = reparar(rota, envios, opR, idsCancelados);
 
             double costoReparado = reparada.evaluarCostoTotal();
             double delta = costoReparado - costoActual;
@@ -209,20 +233,20 @@ public class ALNS {
 
     // ── Operadores de Reparación ──────────────────────────────────────────────
 
-    private SolucionEstado reparar(SolucionEstado sol, Map<String, Envio> envios, int op) {
+    private SolucionEstado reparar(SolucionEstado sol, Map<String, Envio> envios, int op, Set<Integer> idsCancelados) {
         switch (op) {
-            case 0: return reparacionGreedy(sol, envios);
-            case 1: return reparacionRegret(sol, envios);
-            default: return reparacionGreedy(sol, envios);
+            case 0: return reparacionGreedy(sol, envios, idsCancelados);
+            case 1: return reparacionRegret(sol, envios, idsCancelados);
+            default: return reparacionGreedy(sol, envios, idsCancelados);
         }
     }
 
-    private SolucionEstado reparacionGreedy(SolucionEstado sol, Map<String, Envio> envios) {
+    private SolucionEstado reparacionGreedy(SolucionEstado sol, Map<String, Envio> envios, Set<Integer> idsCancelados) {
         List<String> huerfanos = sol.getEnviosSinRuta();
         for (String id : huerfanos) {
             Envio envio = envios.get(id);
-            List<List<Vuelo>> rutas = red.buscarRutas(envio, true);
-            if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio);
+            List<List<Vuelo>> rutas = red.buscarRutas(envio, true, idsCancelados);
+            if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio, idsCancelados);
             if (!rutas.isEmpty()) {
                 sol.asignarRuta(id, rutas.get(0));
             }
@@ -230,7 +254,7 @@ public class ALNS {
         return sol;
     }
 
-    private SolucionEstado reparacionRegret(SolucionEstado sol, Map<String, Envio> envios) {
+    private SolucionEstado reparacionRegret(SolucionEstado sol, Map<String, Envio> envios, Set<Integer> idsCancelados) {
         List<String> huerfanos = new ArrayList<>(sol.getEnviosSinRuta());
 
         List<Map.Entry<String, Double>> regrets = new ArrayList<>();
@@ -238,8 +262,8 @@ public class ALNS {
 
         for (String id : huerfanos) {
             Envio envio = envios.get(id);
-            List<List<Vuelo>> rutas = red.buscarRutas(envio, true);
-            if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio);
+            List<List<Vuelo>> rutas = red.buscarRutas(envio, true, idsCancelados);
+            if (rutas.isEmpty()) rutas = red.buscarRutasRelajadas(envio, idsCancelados);
             rutasPorEnvio.put(id, rutas);
 
             double regret;

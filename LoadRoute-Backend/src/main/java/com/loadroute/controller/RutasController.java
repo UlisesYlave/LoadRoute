@@ -1,6 +1,8 @@
 package com.loadroute.controller;
 
 import com.loadroute.dto.RutaResponseDTO;
+import com.loadroute.dto.SimulacionJobDTO;
+import com.loadroute.service.RuteoAsyncJobService;
 import com.loadroute.service.RuteoAlgoritmoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,9 +49,16 @@ import java.util.List;
 public class RutasController {
 
     private final RuteoAlgoritmoService ruteoService;
+    private final RuteoAsyncJobService asyncJobService;
 
-    public RutasController(RuteoAlgoritmoService ruteoService) {
+    public RutasController(RuteoAlgoritmoService ruteoService, RuteoAsyncJobService asyncJobService) {
         this.ruteoService = ruteoService;
+        this.asyncJobService = asyncJobService;
+    }
+
+    @GetMapping("/health")
+    public ResponseEntity<String> health() {
+        return ResponseEntity.ok("OK");
     }
 
     /**
@@ -64,7 +73,7 @@ public class RutasController {
      * @return DTO con resultados de los algoritmos
      */
     @PostMapping("/simular")
-    public ResponseEntity<RutaResponseDTO> simular(
+    public ResponseEntity<List<RutaResponseDTO>> simular(
             @RequestPart("aeropuertosFile") MultipartFile aeropuertosFile,
             @RequestPart("vuelosFile")      MultipartFile vuelosFile,
             @RequestPart("enviosFiles")     List<MultipartFile> enviosFiles,
@@ -73,7 +82,7 @@ public class RutasController {
             @RequestParam(value = "fechaFin",    required = false)    String fechaFin
     ) throws IOException {
 
-        RutaResponseDTO response = ruteoService.ejecutarRuteo(
+        List<RutaResponseDTO> response = ruteoService.ejecutarRuteo(
                 aeropuertosFile.getInputStream(),
                 vuelosFile.getInputStream(),
                 enviosFiles,
@@ -83,5 +92,30 @@ public class RutasController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/simular-async")
+    public ResponseEntity<SimulacionJobDTO> simularAsync(
+            @RequestPart("aeropuertosFile") MultipartFile aeropuertosFile,
+            @RequestPart("vuelosFile")      MultipartFile vuelosFile,
+            @RequestPart("enviosFiles")     List<MultipartFile> enviosFiles,
+            @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
+            @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
+            @RequestParam(value = "fechaFin",    required = false)    String fechaFin
+    ) throws IOException {
+        return ResponseEntity.ok(asyncJobService.iniciar(
+                aeropuertosFile,
+                vuelosFile,
+                enviosFiles,
+                escenario,
+                fechaInicio,
+                fechaFin
+        ));
+    }
+
+    @GetMapping("/simular-async/{jobId}")
+    public ResponseEntity<SimulacionJobDTO> estadoSimulacion(@PathVariable String jobId) {
+        SimulacionJobDTO job = asyncJobService.obtener(jobId);
+        return job != null ? ResponseEntity.ok(job) : ResponseEntity.notFound().build();
     }
 }

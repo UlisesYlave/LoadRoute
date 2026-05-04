@@ -2,13 +2,14 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { ejecutarSimulacion } from '@/services/ruteoService';
-import { RutaResponse } from '@/types/rutas';
+import { RutaResponse, SimulacionJob } from '@/types/rutas';
 
 interface ControlPanelProps {
-  onResultado: (resultado: RutaResponse) => void;
+  onResultado: (resultado: RutaResponse[]) => void;
   onError: (error: string) => void;
   onCargando: (cargando: boolean) => void;
-  onFechaInicio?: (fecha: string) => void; // Notifica la fecha elegida al padre
+  onFechaInicio?: (fecha: string) => void;
+  onProgressJob?: (job: SimulacionJob) => void;
 }
 
 interface FileState {
@@ -19,25 +20,25 @@ interface FileState {
 const ESCENARIOS = [
   {
     id: 1,
-    titulo: 'Tiempo Real',
-    subtitulo: 'Operación día a día — SA',
-    descripcion: 'SA procesa envíos del día y emite rutas optimizadas.',
-    icono: '⚡',
-    color: 'blue',
-  },
-  {
-    id: 2,
     titulo: 'Simulación de Periodo',
-    subtitulo: 'Experimentación — SA vs ALNS',
-    descripcion: 'Compara ambos algoritmos con carga histórica completa.',
+    subtitulo: 'Sin interrupciones — SA vs ALNS',
+    descripcion: 'Simulación completa del periodo sin cancelaciones. SA y ALNS compiten en condiciones ideales para establecer el baseline de rendimiento.',
     icono: '📊',
     color: 'cyan',
   },
   {
+    id: 2,
+    titulo: 'Operación Día a Día',
+    subtitulo: 'Baja interrupción — SA vs ALNS',
+    descripcion: 'Operación real con cancelación leve (~1% de vuelos/día). SA y ALNS replanifican diariamente. El estado de la red evoluciona progresivamente.',
+    icono: '⚡',
+    color: 'blue',
+  },
+  {
     id: 3,
-    titulo: 'Simulación de Colapso',
-    subtitulo: 'Cancelación de vuelo — SA + ALNS',
-    descripcion: 'SA genera base, se cancela un vuelo, ALNS replanifica.',
+    titulo: 'Operación de Colapso',
+    subtitulo: 'Cancelación agresiva — SA vs ALNS',
+    descripcion: 'Cancelación acumulativa del 5% de vuelos por día. SA y ALNS deben replanificar bajo estrés progresivo hasta alcanzar el punto de colapso.',
     icono: '🔄',
     color: 'amber',
   },
@@ -54,7 +55,7 @@ function toBackendDate(htmlDate: string): string {
   return htmlDate.replace(/-/g, '');
 }
 
-export default function ControlPanel({ onResultado, onError, onCargando, onFechaInicio }: ControlPanelProps) {
+export default function ControlPanel({ onResultado, onError, onCargando, onFechaInicio, onProgressJob }: ControlPanelProps) {
   const [archivos, setArchivos] = useState<Record<string, FileState>>({
     aeropuertos: { files: [], name: '' },
     vuelos: { files: [], name: '' },
@@ -64,6 +65,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [ejecutando, setEjecutando] = useState(false);
+  const [progreso, setProgreso] = useState<SimulacionJob | null>(null);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const handleFileChange = useCallback((key: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,6 +96,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     setEjecutando(true);
     onCargando(true);
     onError('');
+    setProgreso({ jobId: '', status: 'PENDING', progress: 0, message: 'Preparando simulacion...' });
     try {
       const resultado = await ejecutarSimulacion(
         archivos.aeropuertos.files[0],
@@ -102,6 +105,10 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
         escenario,
         fechaInicio ? toBackendDate(fechaInicio) : undefined,
         fechaFin    ? toBackendDate(fechaFin)    : undefined,
+        (job) => {
+          setProgreso(job);
+          if (onProgressJob) onProgressJob(job);
+        }
       );
       onResultado(resultado);
     } catch (error) {
@@ -110,6 +117,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     } finally {
       setEjecutando(false);
       onCargando(false);
+      setProgreso(null);
     }
   };
 
@@ -261,6 +269,21 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
           </>
         )}
       </button>
+
+      {progreso && (
+        <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-blue-100 truncate">{progreso.message}</span>
+            <span className="font-mono text-blue-300">{progreso.progress}%</span>
+          </div>
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+            <div
+              className="h-full rounded-full bg-blue-400 transition-all duration-300"
+              style={{ width: `${progreso.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

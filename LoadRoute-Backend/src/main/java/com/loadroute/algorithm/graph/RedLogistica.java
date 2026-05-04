@@ -39,6 +39,10 @@ public class RedLogistica {
     }
 
     public List<List<Vuelo>> buscarRutas(Envio envio, boolean soloConCapacidad) {
+        return buscarRutas(envio, soloConCapacidad, Collections.emptySet());
+    }
+
+    public List<List<Vuelo>> buscarRutas(Envio envio, boolean soloConCapacidad, Set<Integer> vuelosCancelados) {
         String          codigoOrigen  = envio.getOrigen().getCodigo();
         String          codigoDestino = envio.getDestino().getCodigo();
         LocalDateTime   disponibleGMT = envio.getRecepcionGMT();
@@ -59,6 +63,7 @@ public class RedLogistica {
                     .getOrDefault(estado.aeropuertoActual, Collections.emptyList());
 
             for (Vuelo vuelo : vuelosDisponibles) {
+                if (vuelosCancelados != null && vuelosCancelados.contains(vuelo.getId())) continue;
                 if (soloConCapacidad && !vuelo.tieneCapacidad(maletas)) continue;
 
                 LocalDateTime proximaSalida = vuelo.getProximaSalidaGMT(estado.tiempoActual, BUFFER_CONEXION);
@@ -82,7 +87,11 @@ public class RedLogistica {
     }
 
     public List<List<Vuelo>> buscarRutasRelajadas(Envio envio) {
-        return buscarRutas(envio, false);
+        return buscarRutas(envio, false, Collections.emptySet());
+    }
+
+    public List<List<Vuelo>> buscarRutasRelajadas(Envio envio, Set<Integer> vuelosCancelados) {
+        return buscarRutas(envio, false, vuelosCancelados);
     }
 
     // ── Utilidades ────────────────────────────────────────────────────────────

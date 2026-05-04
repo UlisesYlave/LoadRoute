@@ -21,6 +21,9 @@ public class RutaResponseDTO {
     @JsonProperty("aeropuertos")
     private List<AeropuertoDTO> aeropuertos;
 
+    @JsonProperty("vuelosMaestros")
+    private List<TramoDTO> vuelosMaestros;
+
     @JsonProperty("totalVuelos")
     private int totalVuelos;
 
@@ -50,6 +53,9 @@ public class RutaResponseDTO {
 
     public List<AeropuertoDTO> getAeropuertos() { return aeropuertos; }
     public void setAeropuertos(List<AeropuertoDTO> aeropuertos) { this.aeropuertos = aeropuertos; }
+
+    public List<TramoDTO> getVuelosMaestros() { return vuelosMaestros; }
+    public void setVuelosMaestros(List<TramoDTO> vuelosMaestros) { this.vuelosMaestros = vuelosMaestros; }
 
     public int getTotalVuelos() { return totalVuelos; }
     public void setTotalVuelos(int totalVuelos) { this.totalVuelos = totalVuelos; }
@@ -96,6 +102,9 @@ public class RutaResponseDTO {
         @JsonProperty("mensajeColapso")
         private String mensajeColapso;
 
+        @JsonProperty("vuelosCanceladosIds")
+        private List<Integer> vuelosCanceladosIds;
+
         // Constructors
         public ResultadoAlgoritmo() {}
 
@@ -129,6 +138,9 @@ public class RutaResponseDTO {
 
         public String getMensajeColapso() { return mensajeColapso; }
         public void setMensajeColapso(String mensajeColapso) { this.mensajeColapso = mensajeColapso; }
+
+        public List<Integer> getVuelosCanceladosIds() { return vuelosCanceladosIds; }
+        public void setVuelosCanceladosIds(List<Integer> vuelosCanceladosIds) { this.vuelosCanceladosIds = vuelosCanceladosIds; }
     }
 
     public static class RutaMuestra {
@@ -208,6 +220,10 @@ public class RutaResponseDTO {
         @JsonProperty("llegadaMinutosGMT")
         private int llegadaMinutosGMT;
 
+        /** Días desde la fecha de inicio del rango. Permite ubicar el vuelo en el timeline global. */
+        @JsonProperty("diaOffset")
+        private int diaOffset;
+
         public TramoDTO() {}
 
         public String getOrigen() { return origen; }
@@ -245,6 +261,9 @@ public class RutaResponseDTO {
 
         public int getLlegadaMinutosGMT() { return llegadaMinutosGMT; }
         public void setLlegadaMinutosGMT(int llegadaMinutosGMT) { this.llegadaMinutosGMT = llegadaMinutosGMT; }
+
+        public int getDiaOffset() { return diaOffset; }
+        public void setDiaOffset(int diaOffset) { this.diaOffset = diaOffset; }
     }
 
     public static class AeropuertoDTO {

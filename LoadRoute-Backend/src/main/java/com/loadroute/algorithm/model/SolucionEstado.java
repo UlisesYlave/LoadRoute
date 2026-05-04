@@ -224,6 +224,15 @@ public class SolucionEstado {
     public int                      getEnviosAsignados() {
         return (int) asignaciones.values().stream().filter(r -> !r.isEmpty()).count();
     }
+    public Set<String>              getIdsAsignados() {
+        Set<String> ids = new HashSet<>();
+        for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
+            if (!e.getValue().isEmpty()) {
+                ids.add(e.getKey());
+            }
+        }
+        return ids;
+    }
 
     @Override
     public String toString() {

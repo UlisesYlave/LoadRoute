@@ -8,6 +8,7 @@ import ModalEnvio from '@/components/ModalEnvio';
 import ModalAeropuerto from '@/components/ModalAeropuerto';
 import ModalVuelo from '@/components/ModalVuelo';
 import ResultadosPanel from '@/components/ResultadosPanel';
+import SidebarVuelos from '@/components/SidebarVuelos';
 import { RutaResponse, RutaMuestra, AeropuertoDTO, TramoDTO } from '@/types/rutas';
 import { verificarSaludBackend } from '@/services/ruteoService';
 
@@ -22,12 +23,14 @@ const MapaRutas = dynamic(() => import('@/components/MapaRutas'), {
 });
 
 // ── Tipos de tabs ──
-type TabId = 'pedidos' | 'aeropuertos' | 'simulacion';
+type TabId = 'pedidos' | 'aeropuertos' | 'simulacion' | 'vuelos';
+type ModoMapa = 'sa' | 'alns' | 'ambos';
 
 const NAV_TABS: { id: TabId; icon: string; label: string; color: string }[] = [
   { id: 'pedidos',      icon: '📦', label: 'Pedidos',      color: 'blue'    },
   { id: 'aeropuertos',  icon: '🏢', label: 'Aeropuertos',  color: 'emerald' },
   { id: 'simulacion',   icon: '⚙️', label: 'Simulación',   color: 'violet'  },
+  { id: 'vuelos',       icon: '✈️', label: 'Vuelos',       color: 'orange'  },
 ];
 
 // ── Helper: fecha de simulación ──
@@ -43,15 +46,90 @@ function formatFechaSimulacion(fechaInicioRaw: string, simDia: number): string {
   });
 }
 
+function getDiasRango(fechaInicioRaw?: string, fechaFinRaw?: string): number | null {
+  if (!fechaInicioRaw || !fechaFinRaw || fechaInicioRaw.length < 8 || fechaFinRaw.length < 8) {
+    return null;
+  }
+
+  const inicio = new Date(
+    Number(fechaInicioRaw.slice(0, 4)),
+    Number(fechaInicioRaw.slice(4, 6)) - 1,
+    Number(fechaInicioRaw.slice(6, 8))
+  );
+  const fin = new Date(
+    Number(fechaFinRaw.slice(0, 4)),
+    Number(fechaFinRaw.slice(4, 6)) - 1,
+    Number(fechaFinRaw.slice(6, 8))
+  );
+
+  if (Number.isNaN(inicio.getTime()) || Number.isNaN(fin.getTime()) || fin < inicio) {
+    return null;
+  }
+
+  const MS_POR_DIA = 24 * 60 * 60 * 1000;
+  return Math.floor((fin.getTime() - inicio.getTime()) / MS_POR_DIA);
+}
+
 function formatoHora(minutos: number): string {
-  const h = Math.floor(minutos / 60);
+  const h = Math.floor(minutos / 60) % 24;
   const mn = Math.floor(minutos % 60);
   return `${h.toString().padStart(2, '0')}:${mn.toString().padStart(2, '0')} GMT`;
 }
 
+function combineChunks(chunks: RutaResponse[] | undefined): RutaResponse | null {
+  if (!chunks || chunks.length === 0) return null;
+  const base = { ...chunks[0] };
+  base.resultadoSA = base.resultadoSA ? { ...base.resultadoSA, rutasMuestra: [...base.resultadoSA.rutasMuestra] } : null;
+  base.resultadoALNS = base.resultadoALNS ? { ...base.resultadoALNS, rutasMuestra: [...base.resultadoALNS.rutasMuestra] } : null;
+  
+  base.cancelacionesPorDiaSA = [];
+  base.cancelacionesPorDiaALNS = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const c = chunks[i];
+    
+    // Las cancelaciones son por cada día (incluyendo el primero)
+    if (base.resultadoSA && c.resultadoSA) {
+      base.cancelacionesPorDiaSA.push(c.resultadoSA.vuelosCanceladosIds || []);
+    }
+    if (base.resultadoALNS && c.resultadoALNS) {
+      base.cancelacionesPorDiaALNS.push(c.resultadoALNS.vuelosCanceladosIds || []);
+    }
+
+    if (i === 0) continue; // Las métricas del primer chunk ya están en `base`
+
+    base.fechaFin = c.fechaFin;
+    // Agregamos las métricas acumuladas
+    if (base.resultadoSA && c.resultadoSA) {
+      base.resultadoSA.costoInicial += c.resultadoSA.costoInicial;
+      base.resultadoSA.costoFinal += c.resultadoSA.costoFinal;
+      base.resultadoSA.tiempoEjecucionMs += c.resultadoSA.tiempoEjecucionMs;
+      base.resultadoSA.enviosAsignados += c.resultadoSA.enviosAsignados;
+      base.resultadoSA.totalEnvios += c.resultadoSA.totalEnvios;
+      base.resultadoSA.rutasMuestra.push(...c.resultadoSA.rutasMuestra);
+      if (base.resultadoSA.costoInicial > 0) {
+        base.resultadoSA.mejoraRelativa = ((base.resultadoSA.costoInicial - base.resultadoSA.costoFinal) / base.resultadoSA.costoInicial) * 100;
+      }
+    }
+    if (base.resultadoALNS && c.resultadoALNS) {
+      base.resultadoALNS.costoInicial += c.resultadoALNS.costoInicial;
+      base.resultadoALNS.costoFinal += c.resultadoALNS.costoFinal;
+      base.resultadoALNS.tiempoEjecucionMs += c.resultadoALNS.tiempoEjecucionMs;
+      base.resultadoALNS.enviosAsignados += c.resultadoALNS.enviosAsignados;
+      base.resultadoALNS.totalEnvios += c.resultadoALNS.totalEnvios;
+      base.resultadoALNS.rutasMuestra.push(...c.resultadoALNS.rutasMuestra);
+      base.resultadoALNS.mensajeColapso = c.resultadoALNS.mensajeColapso || base.resultadoALNS.mensajeColapso;
+      if (base.resultadoALNS.costoInicial > 0) {
+        base.resultadoALNS.mejoraRelativa = ((base.resultadoALNS.costoInicial - base.resultadoALNS.costoFinal) / base.resultadoALNS.costoInicial) * 100;
+      }
+    }
+  }
+  return base;
+}
+
 // ── Componente tab de Simulación (panel izquierdo) ──
 function SimulacionPanel({
-  simDia, simTiempoMinutos, fechaInicioRaw, isPlaying,
+  simDia, simTiempoMinutos, fechaInicioRaw, isPlaying, rangoFinalizado,
   onPlay, onPause, onStop, onReiniciar,
   umbralVerde, umbralAmbar, onUmbralVerde, onUmbralAmbar,
 }: {
@@ -59,6 +137,7 @@ function SimulacionPanel({
   simTiempoMinutos: number;
   fechaInicioRaw: string;
   isPlaying: boolean;
+  rangoFinalizado: boolean;
   onPlay: () => void;
   onPause: () => void;
   onStop: () => void;
@@ -84,15 +163,21 @@ function SimulacionPanel({
         <p className="text-3xl font-mono text-emerald-400 font-bold tracking-wider">
           {formatoHora(simTiempoMinutos)}
         </p>
+        {rangoFinalizado && (
+          <p className="mt-3 text-[10px] font-semibold text-emerald-300 uppercase tracking-wider">
+            Rango finalizado
+          </p>
+        )}
       </div>
 
       {/* Controles de reproducción */}
       <div>
         <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Controles</p>
         <div className="grid grid-cols-3 gap-2">
-          <button onClick={onPlay} disabled={isPlaying}
+          <button onClick={onPlay} disabled={isPlaying || rangoFinalizado}
             className={`flex flex-col items-center gap-1 py-3 rounded-lg text-xs font-semibold transition-all
-              ${isPlaying ? 'bg-blue-600/80 text-white ring-1 ring-blue-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}`}>
+              ${isPlaying ? 'bg-blue-600/80 text-white ring-1 ring-blue-400/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'}
+              ${rangoFinalizado ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <span className="text-base">▶</span>Iniciar
           </button>
           <button onClick={onPause} disabled={!isPlaying}
@@ -174,34 +259,43 @@ export default function Home() {
   const [aeroModal,   setAeroModal]   = useState<AeropuertoDTO | null>(null);
   const [vueloModal,  setVueloModal]  = useState<TramoDTO | null>(null);
 
-  // Simulación
-  const [simTiempoMinutos, setSimTiempoMinutos] = useState(0);
-  const [simDia,           setSimDia]           = useState(0);
+  // Simulación — un único contador de minutos totales desde el inicio del periodo
+  const [simTotalMinutos,  setSimTotalMinutos]  = useState(0);
   const [isPlaying,        setIsPlaying]        = useState(false);
   const [fechaInicioRaw,   setFechaInicioRaw]   = useState(''); // YYYYMMDD
+  const [fechaFinRaw,      setFechaFinRaw]      = useState(''); // YYYYMMDD
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Derivados del contador total
+  const simDia           = Math.floor(simTotalMinutos / 1440);
+  const simHoraMinutos   = simTotalMinutos % 1440;
 
   // Layout
   const [activeTab,        setActiveTab]        = useState<TabId | null>('pedidos');
   const [panelResultOpen,  setPanelResultOpen]  = useState(true);
+  const [modoMapa,         setModoMapa]         = useState<ModoMapa>('alns');
 
   // Umbrales dinámicos de capacidad
   const [umbralVerde, setUmbralVerde] = useState(30);
   const [umbralAmbar, setUmbralAmbar] = useState(70);
+  const maxSimDia = getDiasRango(fechaInicioRaw, fechaFinRaw);
+  // El limite total es (maxSimDia + 1) días completos; +1 para que el último día se complete
+  const maxTotalMinutos   = maxSimDia !== null ? (maxSimDia + 1) * 1440 : null;
+  const rangoFinalizado   = maxTotalMinutos !== null && simTotalMinutos >= maxTotalMinutos;
 
   useEffect(() => {
     verificarSaludBackend().then(setBackendActivo);
   }, []);
 
-  // Timer — detecta cruce de medianoche para incrementar día
+  // Timer — incrementa simTotalMinutos; para cuando alcanza el límite del periodo
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
-        setSimTiempoMinutos(prev => {
+        setSimTotalMinutos(prev => {
           const next = prev + 3;
-          if (next >= 1440) {
-            setSimDia(d => d + 1);
-            return next % 1440;
+          if (maxTotalMinutos !== null && next >= maxTotalMinutos) {
+            setIsPlaying(false);
+            return maxTotalMinutos; // congela en el último minuto
           }
           return next;
         });
@@ -210,20 +304,19 @@ export default function Home() {
       if (timerRef.current) clearInterval(timerRef.current);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [isPlaying]);
+  }, [isPlaying, maxTotalMinutos]);
 
   const handleReiniciar = () => {
     setResultado(null);
     setIsPlaying(false);
-    setSimTiempoMinutos(0);
-    setSimDia(0);
+    setSimTotalMinutos(0);
     setFechaInicioRaw('');
+    setFechaFinRaw('');
   };
 
   const handleStop = () => {
     setIsPlaying(false);
-    setSimTiempoMinutos(0);
-    setSimDia(0);
+    setSimTotalMinutos(0);
   };
 
   const handleTabClick = useCallback((id: TabId) => {
@@ -254,9 +347,30 @@ export default function Home() {
             </p>
           </div>
           <ControlPanel
-            onResultado={(res) => {
-              setResultado(res);
-              setIsPlaying(true);
+            onResultado={(resChunks) => {
+              const res = combineChunks(resChunks);
+              if (res) {
+                setResultado(res);
+                setSimTotalMinutos(0);
+                // fechaInicioRaw ya fue seteado por onFechaInicio antes de ejecutar
+                // res.fechaFin es el último chunk en YYYYMMDD
+                setFechaFinRaw(res.fechaFin || '');
+                setIsPlaying(true);
+              }
+            }}
+            onProgressJob={(job) => {
+              const res = combineChunks(job.chunks);
+              if (res) {
+                if (!resultado) {
+                  setResultado(res);
+                  setSimTotalMinutos(0);
+                  setIsPlaying(true);
+                } else {
+                  setResultado(res);
+                  // Actualizar la fecha fin a medida que llegan chunks
+                  setFechaFinRaw(res.fechaFin || '');
+                }
+              }
             }}
             onError={setError}
             onCargando={setCargando}
@@ -311,8 +425,8 @@ export default function Home() {
       {/* ── BODY ── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── NAV STRIP (56px) ── */}
-        <nav className="w-14 bg-[#0c1a30] border-r border-slate-700/50 flex flex-col items-center py-4 gap-2 shrink-0">
+        {/* ── NAV STRIP (56px, siempre visible, fuera del área del mapa) ── */}
+        <nav className="w-14 bg-[#0c1a30] border-r border-slate-700/50 flex flex-col items-center py-4 gap-2 shrink-0 z-30">
           {NAV_TABS.map(tab => {
             const isActive = activeTab === tab.id;
             const activeColors: Record<string, string> = {
@@ -346,90 +460,91 @@ export default function Home() {
           })}
         </nav>
 
-        {/* ── PANEL LATERAL (deslizable) ── */}
-        <div
-          className="overflow-hidden shrink-0 border-r border-slate-700/50 bg-[#0c1a30] flex flex-col"
-          style={{ width: activeTab ? '320px' : '0px', transition: 'width 0.25s ease' }}
-        >
-          {/* Este div siempre tiene 320px de ancho; el padre lo recorta con overflow-hidden */}
-          <div className="w-80 flex flex-col" style={{ height: '100%' }}>
-            {/* Header del panel con botón cerrar */}
-            <div className="px-4 py-3 bg-[#0f1f3d] border-b border-slate-700/50 shrink-0 flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                {NAV_TABS.find(t => t.id === activeTab)?.label ?? ''}
-              </span>
-              <button
-                onClick={() => setActiveTab(null)}
-                className="text-slate-600 hover:text-slate-300 text-lg leading-none transition-colors"
-                aria-label="Cerrar panel"
-              >
-                ✕
-              </button>
-            </div>
-            {/* Contenido */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              {(activeTab === 'pedidos' || activeTab === 'aeropuertos') && (
-                <SidebarInfo
-                  envios={rutasActivas}
-                  aeropuertos={resultado.aeropuertos}
-                  activeTab={activeTab}
-                  onSelectEnvio={setEnvioModal}
-                  onSelectAeropuerto={setAeroModal}
-                />
-              )}
-              {activeTab === 'simulacion' && (
-                <SimulacionPanel
-                  simDia={simDia}
-                  simTiempoMinutos={simTiempoMinutos}
-                  fechaInicioRaw={fechaInicioRaw}
-                  isPlaying={isPlaying}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onStop={handleStop}
-                  onReiniciar={handleReiniciar}
-                  umbralVerde={umbralVerde}
-                  umbralAmbar={umbralAmbar}
-                  onUmbralVerde={handleUmbralVerde}
-                  onUmbralAmbar={handleUmbralAmbar}
-                />
-              )}
-            </div>
-          </div>
-        </div>
+        {/* ── MAPA — ocupa TODO el espacio restante. Los paneles flotan encima ── */}
+        <main className="flex-1 relative overflow-hidden">
+          <MapaRutas
+            resultado={resultado}
+            simTiempoMinutos={simTotalMinutos}
+            onSelectVuelo={setVueloModal}
+            selectedVuelo={vueloModal}
+            umbralVerde={umbralVerde}
+            umbralAmbar={umbralAmbar}
+            modoMapa={modoMapa}
+            onModoMapa={setModoMapa}
+          />
 
-        {/* ── MAPA (flex-1) ── */}
-        <main className="flex-1 relative flex overflow-hidden">
-          {/* Mapa */}
-          <div className="flex-1 relative min-h-0">
-            <MapaRutas
-              resultado={resultado}
-              simTiempoMinutos={simTiempoMinutos}
-              onSelectVuelo={setVueloModal}
-              selectedVuelo={vueloModal}
-              umbralVerde={umbralVerde}
-              umbralAmbar={umbralAmbar}
-            />
-
-            {/* Botón toggle panel de resultados */}
-            <button
-              onClick={() => setPanelResultOpen(p => !p)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-[500]
-                         w-6 h-16 bg-[#0c1a30] border border-slate-700/50 border-r-0
-                         rounded-l-lg flex items-center justify-center
-                         text-slate-400 hover:text-slate-200 hover:bg-slate-700/50
-                         transition-all text-xs"
-              aria-label="Toggle panel de resultados"
-            >
-              {panelResultOpen ? '›' : '‹'}
-            </button>
-          </div>
-
-          {/* ── PANEL RESULTADOS (derecha, colapsable) ── */}
+          {/* ── PANEL LATERAL IZQUIERDO — flotante, no afecta el ancho del mapa ── */}
           <div
-            className="overflow-hidden shrink-0 border-l border-slate-700/50 bg-[#0c1a30] flex flex-col"
-            style={{ width: panelResultOpen ? '400px' : '0px', transition: 'width 0.25s ease' }}
+            className="absolute top-0 left-0 h-full z-[1000] overflow-hidden pointer-events-none"
+            style={{ width: activeTab ? '320px' : '0px', transition: 'width 0.25s ease' }}
           >
-            <div style={{ width: '400px' }} className="h-full overflow-y-auto custom-scrollbar">
+            <div className="pointer-events-auto w-80 h-full bg-[#0c1a30]/95 border-r border-slate-700/50 backdrop-blur-sm flex flex-col">
+              {/* Header del panel con botón cerrar */}
+              <div className="px-4 py-3 bg-[#0f1f3d] border-b border-slate-700/50 shrink-0 flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                  {NAV_TABS.find(t => t.id === activeTab)?.label ?? ''}
+                </span>
+                <button
+                  onClick={() => setActiveTab(null)}
+                  className="text-slate-600 hover:text-slate-300 text-lg leading-none transition-colors"
+                  aria-label="Cerrar panel"
+                >
+                  ✕
+                </button>
+              </div>
+              {/* Contenido */}
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {(activeTab === 'pedidos' || activeTab === 'aeropuertos') && (
+                  <SidebarInfo
+                    envios={rutasActivas}
+                    aeropuertos={resultado.aeropuertos}
+                    activeTab={activeTab}
+                    onSelectEnvio={setEnvioModal}
+                    onSelectAeropuerto={setAeroModal}
+                  />
+                )}
+                {activeTab === 'simulacion' && (
+                  <SimulacionPanel
+                    simDia={simDia}
+                    simTiempoMinutos={simHoraMinutos}
+                    fechaInicioRaw={fechaInicioRaw}
+                    isPlaying={isPlaying}
+                    rangoFinalizado={rangoFinalizado}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                    onStop={handleStop}
+                    onReiniciar={handleReiniciar}
+                    umbralVerde={umbralVerde}
+                    umbralAmbar={umbralAmbar}
+                    onUmbralVerde={handleUmbralVerde}
+                    onUmbralAmbar={handleUmbralAmbar}
+                  />
+                )}
+                {activeTab === 'vuelos' && (
+                  <SidebarVuelos
+                    vuelos={resultado.vuelosMaestros || []}
+                    cancelacionesPorDia={
+                      modoMapa === 'alns' 
+                        ? (resultado.cancelacionesPorDiaALNS || []) 
+                        : (resultado.cancelacionesPorDiaSA || [])
+                    }
+                    simDia={simDia}
+                    maxDia={Math.max(0, (resultado.cancelacionesPorDiaSA?.length || 1) - 1)}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── PANEL RESULTADOS — flotante derecha, no afecta ancho del mapa ── */}
+          <div
+            className="absolute top-0 right-0 h-full z-[1000] overflow-hidden pointer-events-none"
+            style={{ width: panelResultOpen ? 'min(760px, 48vw)' : '0px', transition: 'width 0.25s ease' }}
+          >
+            <div
+              className="pointer-events-auto h-full bg-[#0c1a30]/95 border-l border-slate-700/50 backdrop-blur-sm overflow-y-auto custom-scrollbar"
+              style={{ width: 'min(760px, 48vw)' }}
+            >
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -446,6 +561,19 @@ export default function Home() {
               </div>
             </div>
           </div>
+
+          {/* Botón toggle panel de resultados */}
+          <button
+            onClick={() => setPanelResultOpen(p => !p)}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-[1001]
+                       w-6 h-16 bg-[#0c1a30] border border-slate-700/50 border-r-0
+                       rounded-l-lg flex items-center justify-center
+                       text-slate-400 hover:text-slate-200 hover:bg-slate-700/50
+                       transition-all text-xs"
+            aria-label="Toggle panel de resultados"
+          >
+            {panelResultOpen ? '›' : '‹'}
+          </button>
         </main>
       </div>
 
@@ -454,7 +582,7 @@ export default function Home() {
       <ModalAeropuerto
         aeropuerto={aeroModal}
         rutasActivas={rutasActivas}
-        simTiempoMinutos={simTiempoMinutos}
+        simTiempoMinutos={simTotalMinutos}
         onClose={() => setAeroModal(null)}
       />
       <ModalVuelo

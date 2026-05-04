@@ -9,10 +9,13 @@ import {
   useMap,
   CircleMarker,
   Tooltip,
+  ZoomControl,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { RutaResponse, AeropuertoDTO } from '@/types/rutas';
 import 'leaflet/dist/leaflet.css';
+
+type ModoMapa = 'sa' | 'alns' | 'ambos';
 
 interface MapaRutasProps {
   resultado: RutaResponse | null;
@@ -21,6 +24,8 @@ interface MapaRutasProps {
   selectedVuelo?: any | null;  // tramo seleccionado — dibuja solo su polilínea
   umbralVerde: number;
   umbralAmbar: number;
+  modoMapa: ModoMapa;
+  onModoMapa: (modo: ModoMapa) => void;
 }
 
 // Semáforo dinámico de Aeropuertos (por % de ocupación real)
@@ -66,10 +71,21 @@ function crearIconoAvion(color: string, angle: number): L.DivIcon {
   });
 }
 
-export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, selectedVuelo, umbralVerde, umbralAmbar }: MapaRutasProps) {
+export default function MapaRutas({
+  resultado,
+  simTiempoMinutos,
+  onSelectVuelo,
+  selectedVuelo,
+  umbralVerde,
+  umbralAmbar,
+  modoMapa,
+  onModoMapa,
+}: MapaRutasProps) {
   const aeropuertos = resultado?.aeropuertos || [];
   const resultadoSA = resultado?.resultadoSA;
   const resultadoALNS = resultado?.resultadoALNS;
+  const mostrarSA = modoMapa === 'sa' || modoMapa === 'ambos' || !resultadoALNS;
+  const mostrarALNS = modoMapa === 'alns' || modoMapa === 'ambos';
 
   const tramosSA = resultadoSA?.rutasMuestra?.flatMap(r => r.tramos) || [];
   const tramosALNS = resultadoALNS?.rutasMuestra?.flatMap(r => r.tramos) || [];
@@ -89,20 +105,41 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, 
   }
 
   return (
-    <div className="w-full h-full relative">
+    <div className="w-full h-full relative overflow-hidden">
+      {/* Toggle SA/ALNS — z-[600] para quedar sobre paneles flotantes */}
+      <div className="absolute left-4 top-4 z-[600] flex overflow-hidden rounded-lg border border-slate-700/60 bg-[#0c1a30]/95 shadow-xl">
+        {([
+          ['sa', 'SA'],
+          ['alns', 'ALNS'],
+          ['ambos', 'Ambos'],
+        ] as const).map(([modo, label]) => (
+          <button
+            key={modo}
+            onClick={() => onModoMapa(modo)}
+            className={`px-3 py-2 text-xs font-semibold transition-colors
+              ${modoMapa === modo ? 'bg-blue-500 text-white' : 'text-slate-300 hover:bg-slate-700/70'}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <MapContainer
         center={[20, 30]}
         zoom={3}
         minZoom={2}
-        maxBounds={[[-90, -200], [90, 200]]}
+        maxZoom={12}
+        maxBounds={[[-85, -180], [85, 180]]}
         maxBoundsViscosity={1.0}
+        worldCopyJump={false}
         style={{ width: '100%', height: '100%', backgroundColor: '#aadaff' }}
-        zoomControl={true}
+        zoomControl={false}
       >
+        <ZoomControl position="bottomleft" />
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           attribution='&copy; CARTO'
-          maxZoom={19}
+          maxZoom={12}
+          minZoom={2}
           noWrap={true}
         />
 
@@ -119,7 +156,12 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, 
 
         {/* Marcadores de aeropuertos */}
         {aeropuertos.map(a => {
-          const cargaActual = getAirportCurrentLoad(a.codigo, resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [], simTiempoMinutos);
+          const rutasParaCarga = modoMapa === 'sa'
+            ? (resultadoSA?.rutasMuestra || [])
+            : modoMapa === 'alns'
+              ? (resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [])
+              : [...(resultadoSA?.rutasMuestra || []), ...(resultadoALNS?.rutasMuestra || [])];
+          const cargaActual = getAirportCurrentLoad(a.codigo, rutasParaCarga, simTiempoMinutos);
           const pct = a.capacidadMax > 0 ? Math.round((cargaActual / a.capacidadMax) * 100) : 0;
           return (
             <CircleMarker
@@ -144,11 +186,8 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, 
         })}
 
         {/* Aviones SA en vuelo */}
-        {activePlanesSA.map((t) => {
+        {mostrarSA && activePlanesSA.map((t) => {
           const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
-          const cargaVuelo = getVueloLoad(t.vueloId, tramosSA); // Wait, we need the maletas from the root rutasMuestra
-          // Actually, instead of tramosSA, pass the full rutas array down to getVueloLoad.
-          // Let's compute color properly:
           const carga = getVueloLoad(t.vueloId, resultadoSA?.rutasMuestra || []);
           const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
           return (
@@ -162,7 +201,7 @@ export default function MapaRutas({ resultado, simTiempoMinutos, onSelectVuelo, 
         })}
 
         {/* Aviones ALNS en vuelo */}
-        {activePlanesALNS.map((t) => {
+        {mostrarALNS && activePlanesALNS.map((t) => {
           const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
           const carga = getVueloLoad(t.vueloId, resultadoALNS?.rutasMuestra || []);
           const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
@@ -194,25 +233,32 @@ function deduplicarTramosLineas(tramos: any[]) {
   });
 }
 
-function isFlying(t: any, current: number) {
-  if (t.llegadaMinutosGMT === undefined || t.salidaMinutosGMT === undefined) return false;
-  
-  if (t.llegadaMinutosGMT >= t.salidaMinutosGMT) {
-    return current >= t.salidaMinutosGMT && current <= t.llegadaMinutosGMT;
-  } else {
-    // cruza medianoche
-    return current >= t.salidaMinutosGMT || current <= t.llegadaMinutosGMT;
+function isFlying(t: any, simTotalMinutos: number) {
+  if (t.llegadaMinutosGMT === undefined || t.salidaMinutosGMT === undefined || t.diaOffset === undefined) return false;
+
+  const salidaTotal = t.diaOffset * 1440 + t.salidaMinutosGMT;
+  let llegadaTotal = t.diaOffset * 1440 + t.llegadaMinutosGMT;
+
+  // Si la llegada es menor a la salida, cruza la medianoche (llega el día siguiente)
+  if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+    llegadaTotal += 1440;
   }
+
+  return simTotalMinutos >= salidaTotal && simTotalMinutos <= llegadaTotal;
 }
 
-function getInterpolatedPosition(t: any, current: number) {
-  let duration = t.llegadaMinutosGMT - t.salidaMinutosGMT;
-  if (duration < 0) duration += 1440;
+function getInterpolatedPosition(t: any, simTotalMinutos: number) {
+  const salidaTotal = t.diaOffset * 1440 + t.salidaMinutosGMT;
+  let llegadaTotal = t.diaOffset * 1440 + t.llegadaMinutosGMT;
+
+  if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+    llegadaTotal += 1440;
+  }
+
+  const duration = llegadaTotal - salidaTotal;
+  const passed = simTotalMinutos - salidaTotal;
   
-  let passed = current - t.salidaMinutosGMT;
-  if (passed < 0) passed += 1440;
-  
-  let p = passed / duration;
+  let p = duration === 0 ? 1 : passed / duration;
   if (p < 0) p = 0;
   if (p > 1) p = 1;
   
@@ -242,7 +288,7 @@ function getActiveFlights(tramos: any[], current: number) {
   return active;
 }
 
-function getAirportCurrentLoad(airportCode: string, rutas: any[], currentMinute: number): number {
+function getAirportCurrentLoad(airportCode: string, rutas: any[], simTotalMinutos: number): number {
    let total = 0;
    for (const r of rutas) {
       if (!r.tramos || r.tramos.length === 0) continue;
@@ -250,14 +296,20 @@ function getAirportCurrentLoad(airportCode: string, rutas: any[], currentMinute:
       const firstFlight = r.tramos[0];
       const lastFlight = r.tramos[r.tramos.length - 1];
 
+      const firstSalidaTotal = firstFlight.diaOffset * 1440 + firstFlight.salidaMinutosGMT;
+      let lastLlegadaTotal = lastFlight.diaOffset * 1440 + lastFlight.llegadaMinutosGMT;
+      if (lastFlight.llegadaMinutosGMT < lastFlight.salidaMinutosGMT) {
+         lastLlegadaTotal += 1440;
+      }
+
       if (airportCode === r.origen) {
-         if (currentMinute <= firstFlight.salidaMinutosGMT) {
+         if (simTotalMinutos <= firstSalidaTotal) {
             total += r.maletas;
          }
       }
       
       if (airportCode === r.destino) {
-         if (currentMinute >= lastFlight.llegadaMinutosGMT) {
+         if (simTotalMinutos >= lastLlegadaTotal) {
             total += r.maletas;
          }
       }
@@ -265,14 +317,16 @@ function getAirportCurrentLoad(airportCode: string, rutas: any[], currentMinute:
       for (let i = 0; i < r.tramos.length - 1; i++) {
          const arrFlight = r.tramos[i];
          const depFlight = r.tramos[i+1];
+
+         let arrLlegadaTotal = arrFlight.diaOffset * 1440 + arrFlight.llegadaMinutosGMT;
+         if (arrFlight.llegadaMinutosGMT < arrFlight.salidaMinutosGMT) {
+            arrLlegadaTotal += 1440;
+         }
+         const depSalidaTotal = depFlight.diaOffset * 1440 + depFlight.salidaMinutosGMT;
+
          if (airportCode === arrFlight.destino) {
-            if (currentMinute >= arrFlight.llegadaMinutosGMT && currentMinute <= depFlight.salidaMinutosGMT) {
+            if (simTotalMinutos >= arrLlegadaTotal && simTotalMinutos <= depSalidaTotal) {
                 total += r.maletas;
-            } else if (arrFlight.llegadaMinutosGMT > depFlight.salidaMinutosGMT) {
-                // crosses midnight
-                if (currentMinute >= arrFlight.llegadaMinutosGMT || currentMinute <= depFlight.salidaMinutosGMT) {
-                    total += r.maletas;
-                }
             }
          }
       }
