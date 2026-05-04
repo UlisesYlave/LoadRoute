@@ -47,6 +47,7 @@ export interface ResultadoAlgoritmo {
   iteraciones: number;
   tiempoEjecucionMs: number;
   enviosAsignados: number;
+  enviosNoAceptados: number;
   totalEnvios: number;
   rutasMuestra: RutaMuestra[];
   mensajeColapso?: string;
@@ -77,3 +78,5 @@ export interface SimulacionJob {
   chunks?: RutaResponse[];
   error?: string;
 }
+
+export type AlgoritmoSeleccion = 'sa' | 'alns' | 'ambos';

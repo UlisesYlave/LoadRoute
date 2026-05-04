@@ -20,6 +20,7 @@ public class SolucionEstado {
 
     private final Map<String, List<Vuelo>> asignaciones;
     private final Map<String, Envio> envios;
+    private final Set<String> idsNoAceptados = new HashSet<>();
 
     public SolucionEstado(Map<String, Envio> envios) {
         this.envios       = envios;
@@ -35,6 +36,54 @@ public class SolucionEstado {
         for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
             this.asignaciones.put(e.getKey(), new ArrayList<>(e.getValue()));
         }
+    }
+
+    /**
+     * Convierte la capacidad de aeropuertos en restriccion dura.
+     * Si un envio no cabe en origen o conexiones durante sus intervalos de espera,
+     * se remueve su ruta y queda registrado como no aceptado.
+     */
+    public int aplicarRestriccionCapacidadAeropuertos() {
+        idsNoAceptados.clear();
+        Map<String, List<OccupancyEvent>> eventosPorAero = new HashMap<>();
+        List<String> idsConRuta = new ArrayList<>();
+
+        for (Map.Entry<String, List<Vuelo>> entry : asignaciones.entrySet()) {
+            if (!entry.getValue().isEmpty()) idsConRuta.add(entry.getKey());
+        }
+
+        idsConRuta.sort(Comparator
+                .comparing((String id) -> envios.get(id).getRecepcionGMT())
+                .thenComparing(id -> id));
+
+        for (String id : idsConRuta) {
+            Envio envio = envios.get(id);
+            List<Vuelo> ruta = asignaciones.getOrDefault(id, Collections.emptyList());
+            List<AirportInterval> intervalos = construirIntervalosAeropuerto(envio, ruta);
+
+            boolean cabe = true;
+            for (AirportInterval intervalo : intervalos) {
+                List<OccupancyEvent> eventos = eventosPorAero.getOrDefault(intervalo.codigoAeropuerto, Collections.emptyList());
+                if (!cabeEnIntervalo(eventos, intervalo.inicio, intervalo.fin, intervalo.maletas, intervalo.capacidadMax)) {
+                    cabe = false;
+                    break;
+                }
+            }
+
+            if (!cabe) {
+                removerRuta(id);
+                idsNoAceptados.add(id);
+                continue;
+            }
+
+            for (AirportInterval intervalo : intervalos) {
+                List<OccupancyEvent> eventos = eventosPorAero.computeIfAbsent(intervalo.codigoAeropuerto, k -> new ArrayList<>());
+                eventos.add(new OccupancyEvent(intervalo.inicio, intervalo.maletas));
+                eventos.add(new OccupancyEvent(intervalo.fin, -intervalo.maletas));
+            }
+        }
+
+        return idsNoAceptados.size();
     }
 
     // ── Función objetivo ─────────────────────────────────────────────────────
@@ -114,7 +163,7 @@ public class SolucionEstado {
         for (Map.Entry<String, List<OccupancyEvent>> entry : eventosPorAero.entrySet()) {
             String codAero = entry.getKey();
             List<OccupancyEvent> eventos = entry.getValue();
-            eventos.sort(Comparator.comparing(ev -> ev.tiempo));
+            eventos.sort(this::compararEventos);
 
             int maxCapAero = buscarCapacidadAero(codAero);
             int ocupacionActual = 0;
@@ -159,6 +208,84 @@ public class SolucionEstado {
         LocalDateTime tiempo;
         int delta;
         OccupancyEvent(LocalDateTime t, int d) { this.tiempo = t; this.delta = d; }
+    }
+
+    private static class AirportInterval {
+        String codigoAeropuerto;
+        LocalDateTime inicio;
+        LocalDateTime fin;
+        int maletas;
+        int capacidadMax;
+
+        AirportInterval(String codigoAeropuerto, LocalDateTime inicio, LocalDateTime fin, int maletas, int capacidadMax) {
+            this.codigoAeropuerto = codigoAeropuerto;
+            this.inicio = inicio;
+            this.fin = fin;
+            this.maletas = maletas;
+            this.capacidadMax = capacidadMax;
+        }
+    }
+
+    private List<AirportInterval> construirIntervalosAeropuerto(Envio envio, List<Vuelo> ruta) {
+        List<AirportInterval> intervalos = new ArrayList<>();
+        if (envio == null || ruta == null || ruta.isEmpty()) return intervalos;
+
+        int maletas = envio.getCantidadMaletas();
+        LocalDateTime t = envio.getRecepcionGMT();
+
+        Vuelo primero = ruta.get(0);
+        LocalDateTime salida = primero.getProximaSalidaGMT(t, 30);
+        agregarIntervalo(intervalos, envio.getOrigen(), t, salida, maletas);
+        t = primero.getLlegadaGMT(salida);
+
+        for (int i = 1; i < ruta.size(); i++) {
+            Vuelo vuelo = ruta.get(i);
+            salida = vuelo.getProximaSalidaGMT(t, 30);
+            agregarIntervalo(intervalos, vuelo.getOrigen(), t, salida, maletas);
+            t = vuelo.getLlegadaGMT(salida);
+        }
+
+        return intervalos;
+    }
+
+    private void agregarIntervalo(List<AirportInterval> intervalos, Aeropuerto aeropuerto,
+                                  LocalDateTime inicio, LocalDateTime fin, int maletas) {
+        if (aeropuerto == null || inicio == null || fin == null || !fin.isAfter(inicio)) return;
+        intervalos.add(new AirportInterval(
+                aeropuerto.getCodigo(),
+                inicio,
+                fin,
+                maletas,
+                aeropuerto.getCapacidadMax()
+        ));
+    }
+
+    private boolean cabeEnIntervalo(List<OccupancyEvent> eventosExistentes,
+                                    LocalDateTime inicio,
+                                    LocalDateTime fin,
+                                    int maletas,
+                                    int capacidadMax) {
+        List<OccupancyEvent> eventos = new ArrayList<>(eventosExistentes);
+        eventos.sort(this::compararEventos);
+
+        int ocupacion = 0;
+        for (OccupancyEvent ev : eventos) {
+            if (!ev.tiempo.isAfter(inicio)) {
+                ocupacion += ev.delta;
+                continue;
+            }
+            if (!ev.tiempo.isBefore(fin)) break;
+            if (ocupacion + maletas > capacidadMax) return false;
+            ocupacion += ev.delta;
+        }
+
+        return ocupacion + maletas <= capacidadMax;
+    }
+
+    private int compararEventos(OccupancyEvent a, OccupancyEvent b) {
+        int cmp = a.tiempo.compareTo(b.tiempo);
+        if (cmp != 0) return cmp;
+        return Integer.compare(a.delta, b.delta);
     }
 
     private int buscarCapacidadAero(String codigo) {
@@ -233,6 +360,7 @@ public class SolucionEstado {
         }
         return ids;
     }
+    public Set<String>              getIdsNoAceptados() { return Collections.unmodifiableSet(idsNoAceptados); }
 
     @Override
     public String toString() {

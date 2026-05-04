@@ -45,7 +45,7 @@ function MetricCard({
   return (
     <div className={`rounded-lg border bg-slate-800/40 p-3 ${colorClasses[color]}`}>
       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">{label}</p>
-      <p className={`text-lg font-bold ${colorClasses[color]?.split(' ')[1]}`}>{value}</p>
+      <p className={`break-words text-base font-bold leading-tight sm:text-lg ${colorClasses[color]?.split(' ')[1]}`}>{value}</p>
       {sub && <p className="text-[10px] text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
@@ -69,7 +69,7 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
         <span className="text-[10px] text-slate-400">{formatTiempo(res.tiempoEjecucionMs)}</span>
       </div>
 
-      <div className="p-3 grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="p-3 grid grid-cols-2 gap-2">
         <MetricCard
           label="Costo Inicial"
           value={formatCosto(res.costoInicial)}
@@ -77,17 +77,25 @@ function AlgoritmoBloque({ res, color }: { res: ResultadoAlgoritmo; color: 'blue
         />
         <MetricCard label="Costo Final" value={formatCosto(res.costoFinal)} color="cyan" />
         <MetricCard
-          label="Mejora Agregada"
-          value={`${res.mejoraRelativa.toFixed(1)}%`}
-          sub={`${res.iteraciones.toLocaleString()} iteraciones totales`}
-          color={res.mejoraRelativa > 0 ? 'green' : 'red'}
-        />
-        <MetricCard
           label="Asignados"
           value={`${res.enviosAsignados}/${res.totalEnvios}`}
           sub={`${((res.enviosAsignados / Math.max(res.totalEnvios, 1)) * 100).toFixed(0)}% cobertura`}
           color="amber"
         />
+        <MetricCard
+          label="No Aceptados"
+          value={`${res.enviosNoAceptados || 0}`}
+          sub="por capacidad"
+          color={(res.enviosNoAceptados || 0) > 0 ? 'red' : 'green'}
+        />
+        <div className="col-span-2">
+          <MetricCard
+            label="Mejora Agregada"
+            value={`${res.mejoraRelativa.toFixed(1)}%`}
+            sub={`${res.iteraciones.toLocaleString()} iteraciones totales`}
+            color={res.mejoraRelativa > 0 ? 'green' : 'red'}
+          />
+        </div>
       </div>
 
       {res.rutasMuestra && res.rutasMuestra.length > 0 && (
@@ -183,6 +191,14 @@ function ComparativaPanel({
       alns: `${resultadoALNS.enviosAsignados}/${resultadoALNS.totalEnvios} (${coberturaALNS.toFixed(0)}%)`,
       diferencia: formatDiferencia(coberturaSA - coberturaALNS, ' pp'),
       ganador: ganadorMayor(coberturaSA, coberturaALNS, 0.05),
+    },
+    {
+      criterio: 'No aceptados',
+      descripcion: 'Menor cantidad de envios rechazados por capacidad aeroportuaria.',
+      sa: `${resultadoSA.enviosNoAceptados || 0}`,
+      alns: `${resultadoALNS.enviosNoAceptados || 0}`,
+      diferencia: formatDiferencia((resultadoSA.enviosNoAceptados || 0) - (resultadoALNS.enviosNoAceptados || 0), ''),
+      ganador: ganadorMenor(resultadoSA.enviosNoAceptados || 0, resultadoALNS.enviosNoAceptados || 0),
     },
   ];
 
