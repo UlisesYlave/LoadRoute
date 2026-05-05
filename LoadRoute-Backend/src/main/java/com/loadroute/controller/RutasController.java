@@ -79,7 +79,8 @@ public class RutasController {
             @RequestPart("enviosFiles")     List<MultipartFile> enviosFiles,
             @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
             @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
-            @RequestParam(value = "fechaFin",    required = false)    String fechaFin
+            @RequestParam(value = "fechaFin",    required = false)    String fechaFin,
+            @RequestParam(value = "algoritmos",  defaultValue = "ambos") String algoritmos
     ) throws IOException {
 
         List<RutaResponseDTO> response = ruteoService.ejecutarRuteo(
@@ -88,7 +89,8 @@ public class RutasController {
                 enviosFiles,
                 escenario,
                 fechaInicio,
-                fechaFin
+                fechaFin,
+                algoritmos
         );
 
         return ResponseEntity.ok(response);
@@ -101,7 +103,8 @@ public class RutasController {
             @RequestPart("enviosFiles")     List<MultipartFile> enviosFiles,
             @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
             @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
-            @RequestParam(value = "fechaFin",    required = false)    String fechaFin
+            @RequestParam(value = "fechaFin",    required = false)    String fechaFin,
+            @RequestParam(value = "algoritmos",  defaultValue = "ambos") String algoritmos
     ) throws IOException {
         return ResponseEntity.ok(asyncJobService.iniciar(
                 aeropuertosFile,
@@ -109,7 +112,8 @@ public class RutasController {
                 enviosFiles,
                 escenario,
                 fechaInicio,
-                fechaFin
+                fechaFin,
+                algoritmos
         ));
     }
 

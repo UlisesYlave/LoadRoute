@@ -8,7 +8,7 @@
  */
 
 import { API_ENDPOINTS } from '@/config/constants';
-import { RutaResponse, SimulacionJob } from '@/types/rutas';
+import { AlgoritmoSeleccion, RutaResponse, SimulacionJob } from '@/types/rutas';
 
 /**
  * Ejecuta la simulación subiendo los 3 archivos de datos al backend.
@@ -20,6 +20,7 @@ export async function ejecutarSimulacion(
   escenario: number,
   fechaInicio?: string,  // formato YYYYMMDD, opcional
   fechaFin?: string,     // formato YYYYMMDD, opcional
+  algoritmos: AlgoritmoSeleccion = 'ambos',
   onProgress?: (job: SimulacionJob) => void
 ): Promise<RutaResponse[]> {
   const started = await iniciarSimulacion(
@@ -28,7 +29,8 @@ export async function ejecutarSimulacion(
     enviosFiles,
     escenario,
     fechaInicio,
-    fechaFin
+    fechaFin,
+    algoritmos
   );
   onProgress?.(started);
 
@@ -41,7 +43,8 @@ export async function iniciarSimulacion(
   enviosFiles: File[],
   escenario: number,
   fechaInicio?: string,
-  fechaFin?: string
+  fechaFin?: string,
+  algoritmos: AlgoritmoSeleccion = 'ambos'
 ): Promise<SimulacionJob> {
   const formData = new FormData();
   // Nombres de campo deben coincidir con @RequestPart del controlador
@@ -55,6 +58,7 @@ export async function iniciarSimulacion(
   const params = new URLSearchParams({ escenario: String(escenario) });
   if (fechaInicio) params.set('fechaInicio', fechaInicio);
   if (fechaFin)    params.set('fechaFin', fechaFin);
+  params.set('algoritmos', algoritmos);
 
   const response = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}?${params.toString()}`, {
     method: 'POST',

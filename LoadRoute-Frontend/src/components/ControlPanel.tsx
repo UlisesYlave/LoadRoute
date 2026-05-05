@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from 'react';
 import { ejecutarSimulacion } from '@/services/ruteoService';
-import { RutaResponse, SimulacionJob } from '@/types/rutas';
+import { AlgoritmoSeleccion, RutaResponse, SimulacionJob } from '@/types/rutas';
 
 interface ControlPanelProps {
   onResultado: (resultado: RutaResponse[]) => void;
@@ -50,6 +50,12 @@ const FILE_CONFIGS = [
   { key: 'envios', label: 'Envíos', desc: '_envios_XXXX_.txt', icon: '📦', accept: '.txt' },
 ];
 
+const ALGORITMOS: { id: AlgoritmoSeleccion; label: string; desc: string }[] = [
+  { id: 'ambos', label: 'SA + ALNS', desc: 'Ejecuta ambos algoritmos' },
+  { id: 'sa', label: 'Solo SA', desc: 'Simulated Annealing' },
+  { id: 'alns', label: 'Solo ALNS', desc: 'Adaptive Large Neighborhood Search' },
+];
+
 /** Convierte 'YYYY-MM-DD' (HTML date input) a 'YYYYMMDD' (backend) */
 function toBackendDate(htmlDate: string): string {
   return htmlDate.replace(/-/g, '');
@@ -62,6 +68,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
     envios: { files: [], name: '' },
   });
   const [escenario, setEscenario] = useState(1);
+  const [algoritmos, setAlgoritmos] = useState<AlgoritmoSeleccion>('ambos');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [ejecutando, setEjecutando] = useState(false);
@@ -105,6 +112,7 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
         escenario,
         fechaInicio ? toBackendDate(fechaInicio) : undefined,
         fechaFin    ? toBackendDate(fechaFin)    : undefined,
+        escenario === 1 ? algoritmos : 'ambos',
         (job) => {
           setProgreso(job);
           if (onProgressJob) onProgressJob(job);
@@ -246,6 +254,35 @@ export default function ControlPanel({ onResultado, onError, onCargando, onFecha
           })}
         </div>
       </div>
+
+      {/* Algoritmo a ejecutar (solo periodo) */}
+      {escenario === 1 && (
+        <div>
+          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+            Algoritmo a Ejecutar
+          </h3>
+          <div className="grid grid-cols-3 gap-2">
+            {ALGORITMOS.map(opcion => {
+              const isActive = algoritmos === opcion.id;
+              return (
+                <button
+                  key={opcion.id}
+                  type="button"
+                  onClick={() => setAlgoritmos(opcion.id)}
+                  className={`rounded-lg border px-3 py-2 text-left transition-all
+                    ${isActive
+                      ? 'border-emerald-400 bg-emerald-500/20 text-emerald-100 ring-1 ring-emerald-400/30'
+                      : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                    }`}
+                >
+                  <p className="text-xs font-semibold">{opcion.label}</p>
+                  <p className="mt-1 text-[10px] leading-tight opacity-80">{opcion.desc}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Botón Ejecutar */}
       <button
