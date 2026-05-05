@@ -1,4 +1,5 @@
 import { AeropuertoDTO, RutaMuestra } from '@/types/rutas';
+import { calcularCargaAeropuertoActual } from '@/utils/capacidad';
 
 interface ModalAeropuertoProps {
   aeropuerto: AeropuertoDTO | null;
@@ -11,40 +12,9 @@ export default function ModalAeropuerto({ aeropuerto, rutasActivas, simTiempoMin
   if (!aeropuerto) return null;
 
   // Calculo de carga actual dinámica
-  let cargaActual = 0;
-  if (rutasActivas && simTiempoMinutos !== undefined) {
-    for (const r of rutasActivas) {
-      if (!r.tramos || r.tramos.length === 0) continue;
-      const firstFlight = r.tramos[0];
-      const lastFlight = r.tramos[r.tramos.length - 1];
-
-      if (aeropuerto.codigo === r.origen) {
-         if (simTiempoMinutos <= firstFlight.salidaMinutosGMT) {
-            cargaActual += r.maletas;
-         }
-      }
-      
-      /* 
-         NOTA: Según requerimiento, los paquetes en su destino final NO se acumulan en el recinto.
-         Solo ocupan espacio en el Origen y en los aeropuertos de Escala.
-      */
-
-      for (let i = 0; i < r.tramos.length - 1; i++) {
-         const arrFlight = r.tramos[i];
-         const depFlight = r.tramos[i+1];
-         if (aeropuerto.codigo === arrFlight.destino) {
-            if (simTiempoMinutos >= arrFlight.llegadaMinutosGMT && simTiempoMinutos <= depFlight.salidaMinutosGMT) {
-                cargaActual += r.maletas;
-            } else if (arrFlight.llegadaMinutosGMT > depFlight.salidaMinutosGMT) {
-                if (simTiempoMinutos >= arrFlight.llegadaMinutosGMT || simTiempoMinutos <= depFlight.salidaMinutosGMT) {
-                    cargaActual += r.maletas;
-                }
-            }
-         }
-      }
-    }
-  }
-
+  const cargaActual = rutasActivas && simTiempoMinutos !== undefined
+    ? calcularCargaAeropuertoActual(aeropuerto.codigo, rutasActivas, simTiempoMinutos)
+    : 0;
   const porcentaje = Math.min((cargaActual / Math.max(aeropuerto.capacidadMax, 1)) * 100, 100).toFixed(1);
 
   return (

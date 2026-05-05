@@ -36,6 +36,8 @@ export interface RutaMuestra {
   destino: string;
   maletas: number;
   slaHoras: number;
+  recepcionMinutosGMT?: number;
+  recepcionDiaOffset?: number;
   tramos: TramoDTO[];
 }
 

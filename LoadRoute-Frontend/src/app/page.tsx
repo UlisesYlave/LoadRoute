@@ -501,6 +501,7 @@ export default function Home() {
                     envios={rutasActivas}
                     aeropuertos={resultado.aeropuertos}
                     activeTab={activeTab}
+                    simTiempoMinutos={simTotalMinutos}
                     onSelectEnvio={setEnvioModal}
                     onSelectAeropuerto={setAeroModal}
                   />
