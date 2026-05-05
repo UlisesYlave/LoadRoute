@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
   Marker,
   Polyline,
   useMap,
-  CircleMarker,
   Tooltip,
   ZoomControl,
 } from 'react-leaflet';
@@ -64,13 +63,73 @@ const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[] }> = ({ aeropuertos
 
 // Iconos de avión según semáforo
 function crearIconoAvion(color: string, angle: number): L.DivIcon {
+  const svg = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+      <path fill="${color}" stroke="white" stroke-width="1.25" stroke-linejoin="round"
+        d="M30 16c0 .85-.62 1.56-1.46 1.7l-9.36 1.47-4.86 9.1c-.34.64-1.2.75-1.7.22l-2.17-2.28 2.73-6.08-5.78.84-2.9 2.95c-.36.36-.9.45-1.36.22l-1.1-.55 2.18-5.43v-4.32L2.04 8.41l1.1-.55c.46-.23 1-.14 1.36.22l2.9 2.95 5.78.84-2.73-6.08 2.17-2.28c.5-.53 1.36-.42 1.7.22l4.86 9.1 9.36 1.47c.84.14 1.46.85 1.46 1.7z"/>
+    </svg>
+  `);
+
   return L.divIcon({
-    className: '',
-    html: `<div style="color:${color};font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));transform:rotate(${angle - 45}deg);line-height:20px;width:20px;height:20px;text-align:center;">✈</div>`,
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
+    className: 'loadroute-plane-marker',
+    html: `<div style="width:28px;height:28px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55));transform:rotate(${angle}deg);transform-origin:center;will-change:transform;background:url('data:image/svg+xml,${svg}') center/contain no-repeat;"></div>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 }
+
+function crearIconoAeropuerto(color: string): L.DivIcon {
+  const svg = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 76">
+      <path fill="${color}" stroke="white" stroke-width="2.2"
+        d="M32 2C18.2 2 7 13.1 7 26.9 7 44.3 32 74 32 74s25-29.7 25-47.1C57 13.1 45.8 2 32 2z"/>
+      <g transform="translate(32 29) rotate(-38) scale(.92) translate(-16 -16)">
+        <path fill="white"
+          d="M30 16c0 .85-.62 1.56-1.46 1.7l-9.36 1.47-4.86 9.1c-.34.64-1.2.75-1.7.22l-2.17-2.28 2.73-6.08-5.78.84-2.9 2.95c-.36.36-.9.45-1.36.22l-1.1-.55 2.18-5.43v-4.32L2.04 8.41l1.1-.55c.46-.23 1-.14 1.36.22l2.9 2.95 5.78.84-2.73-6.08 2.17-2.28c.5-.53 1.36-.42 1.7.22l4.86 9.1 9.36 1.47c.84.14 1.46.85 1.46 1.7z"/>
+      </g>
+    </svg>
+  `);
+
+  return L.divIcon({
+    className: 'loadroute-airport-marker',
+    html: `<div style="width:34px;height:40px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));background:url('data:image/svg+xml,${svg}') center/contain no-repeat;"></div>`,
+    iconSize: [34, 40],
+    iconAnchor: [17, 39],
+  });
+}
+
+const PlaneMarker: React.FC<{
+  tramo: any;
+  rutasMuestra: any[];
+  simTiempoMinutos: number;
+  umbralVerde: number;
+  umbralAmbar: number;
+  prefix: string;
+  onSelectVuelo: (vuelo: any) => void;
+}> = React.memo(function PlaneMarker({
+  tramo,
+  rutasMuestra,
+  simTiempoMinutos,
+  umbralVerde,
+  umbralAmbar,
+  prefix,
+  onSelectVuelo,
+}) {
+  const { lat, lon, angle } = getInterpolatedPosition(tramo, simTiempoMinutos);
+  const carga = useMemo(() => getVueloLoad(tramo.vueloId, rutasMuestra), [tramo.vueloId, rutasMuestra]);
+  const color = getPlaneColor(carga, tramo.capacidad, umbralVerde, umbralAmbar);
+  const icon = useMemo(() => crearIconoAvion(color, angle), [color, angle]);
+  const eventHandlers = useMemo(() => ({ click: () => onSelectVuelo(tramo) }), [onSelectVuelo, tramo]);
+
+  return (
+    <Marker
+      key={`plane-${prefix}-${tramo.vueloId}`}
+      position={[lat, lon]}
+      icon={icon}
+      eventHandlers={eventHandlers}
+    />
+  );
+});
 
 export default function MapaRutas({
   resultado,
@@ -88,8 +147,10 @@ export default function MapaRutas({
   const mostrarSA = modoMapa === 'sa' || modoMapa === 'ambos' || !resultadoALNS;
   const mostrarALNS = modoMapa === 'alns' || modoMapa === 'ambos';
 
-  const tramosSA = resultadoSA?.rutasMuestra?.flatMap(r => r.tramos) || [];
-  const tramosALNS = resultadoALNS?.rutasMuestra?.flatMap(r => r.tramos) || [];
+  const rutasMuestraSA = useMemo(() => resultadoSA?.rutasMuestra || [], [resultadoSA?.rutasMuestra]);
+  const rutasMuestraALNS = useMemo(() => resultadoALNS?.rutasMuestra || [], [resultadoALNS?.rutasMuestra]);
+  const tramosSA = useMemo(() => rutasMuestraSA.flatMap(r => r.tramos), [rutasMuestraSA]);
+  const tramosALNS = useMemo(() => rutasMuestraALNS.flatMap(r => r.tramos), [rutasMuestraALNS]);
 
   const uniqueTramosLineasSA = deduplicarTramosLineas(tramosSA);
   const uniqueTramosLineasALNS = deduplicarTramosLineas(tramosALNS);
@@ -164,16 +225,12 @@ export default function MapaRutas({
               : [...(resultadoSA?.rutasMuestra || []), ...(resultadoALNS?.rutasMuestra || [])];
               const cargaActual = calcularCargaAeropuertoActual(a.codigo, rutasParaCarga, simTiempoMinutos);
           const pct = a.capacidadMax > 0 ? Math.round((cargaActual / a.capacidadMax) * 100) : 0;
+          const colorAeropuerto = getAirportColor(cargaActual, a.capacidadMax, umbralVerde, umbralAmbar);
           return (
-            <CircleMarker
+            <Marker
               key={a.codigo}
-              center={[a.latitud, a.longitud]}
-              radius={5}
-              fillColor={getAirportColor(cargaActual, a.capacidadMax, umbralVerde, umbralAmbar)}
-              fillOpacity={0.9}
-              color="#fff"
-              weight={1}
-              opacity={0.8}
+              position={[a.latitud, a.longitud]}
+              icon={crearIconoAeropuerto(colorAeropuerto)}
             >
               <Tooltip direction="top" offset={[0, -8]} className="airport-tooltip">
                 <div style={{ fontSize: '11px', lineHeight: 1.4 }}>
@@ -182,42 +239,46 @@ export default function MapaRutas({
                   Carga: {cargaActual}/{a.capacidadMax} ({pct}%)
                 </div>
               </Tooltip>
-            </CircleMarker>
+            </Marker>
           );
         })}
 
         {/* Aviones SA en vuelo */}
-        {mostrarSA && activePlanesSA.map((t) => {
-          const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
-          const carga = getVueloLoad(t.vueloId, resultadoSA?.rutasMuestra || []);
-          const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
-          return (
-            <Marker 
-              key={`plane-sa-${t.vueloId}`} 
-              position={[lat, lon]} 
-              icon={crearIconoAvion(cColor, angle)}
-              eventHandlers={{ click: () => onSelectVuelo(t) }}
-            />
-          );
-        })}
+        {mostrarSA && activePlanesSA.map((t) => (
+          <PlaneMarker
+            key={`plane-sa-${t.vueloId}`}
+            tramo={t}
+            rutasMuestra={rutasMuestraSA}
+            simTiempoMinutos={simTiempoMinutos}
+            umbralVerde={umbralVerde}
+            umbralAmbar={umbralAmbar}
+            prefix="sa"
+            onSelectVuelo={onSelectVuelo}
+          />
+        ))}
 
         {/* Aviones ALNS en vuelo */}
-        {mostrarALNS && activePlanesALNS.map((t) => {
-          const { lat, lon, angle } = getInterpolatedPosition(t, simTiempoMinutos);
-          const carga = getVueloLoad(t.vueloId, resultadoALNS?.rutasMuestra || []);
-          const cColor = getPlaneColor(carga, t.capacidad, umbralVerde, umbralAmbar);
-          return (
-            <Marker 
-              key={`plane-alns-${t.vueloId}`} 
-              position={[lat, lon]} 
-              icon={crearIconoAvion(cColor, angle)}
-              eventHandlers={{ click: () => onSelectVuelo(t) }}
-            />
-          );
-        })}
+        {mostrarALNS && activePlanesALNS.map((t) => (
+          <PlaneMarker
+            key={`plane-alns-${t.vueloId}`}
+            tramo={t}
+            rutasMuestra={rutasMuestraALNS}
+            simTiempoMinutos={simTiempoMinutos}
+            umbralVerde={umbralVerde}
+            umbralAmbar={umbralAmbar}
+            prefix="alns"
+            onSelectVuelo={onSelectVuelo}
+          />
+        ))}
 
         <AjustadorMapa aeropuertos={aeropuertos} />
       </MapContainer>
+      <style jsx global>{`
+        .loadroute-plane-marker {
+          transition: transform 16ms linear;
+          will-change: transform;
+        }
+      `}</style>
     </div>
   );
 }
@@ -266,11 +327,12 @@ function getInterpolatedPosition(t: any, simTotalMinutos: number) {
   const lat = t.origenLat + (t.destinoLat - t.origenLat) * p;
   const lon = t.origenLon + (t.destinoLon - t.origenLon) * p;
   
-  // y = lat, x = lon -> atan2(dx, dy) to get angle clockwise from North (because y goes down in screen coords, but in maps lat goes UP)
-  // Wait: in maps, Lat increases UP. Lon increases RIGHT.
   const dLat = t.destinoLat - t.origenLat;
   const dLon = t.destinoLon - t.origenLon;
-  const angle = Math.atan2(dLon, dLat) * (180 / Math.PI);
+  const midLatRad = ((t.origenLat + t.destinoLat) / 2) * (Math.PI / 180);
+  const dx = dLon * Math.cos(midLatRad);
+  const dy = -dLat;
+  const angle = dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx) * (180 / Math.PI);
   
   return { lat, lon, angle };
 }
