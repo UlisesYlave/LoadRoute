@@ -266,11 +266,8 @@ export default function Home() {
   const [isPlaying,        setIsPlaying]        = useState(false);
   const [fechaInicioRaw,   setFechaInicioRaw]   = useState(''); // YYYYMMDD
   const [fechaFinRaw,      setFechaFinRaw]      = useState(''); // YYYYMMDD
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Derivados del contador total
-  const simDia           = Math.floor(simTotalMinutos / 1440);
-  const simHoraMinutos   = simTotalMinutos % 1440;
+  const timerRef = useRef<number | null>(null);
+  const lastFrameRef = useRef<number | null>(null);
 
   // Layout
   const [activeTab,        setActiveTab]        = useState<TabId | null>('pedidos');
@@ -284,28 +281,57 @@ export default function Home() {
   // El limite total es (maxSimDia + 1) días completos; +1 para que el último día se complete
   const maxTotalMinutos   = maxSimDia !== null ? (maxSimDia + 1) * 1440 : null;
   const rangoFinalizado   = maxTotalMinutos !== null && simTotalMinutos >= maxTotalMinutos;
+  const simTotalVisual    = rangoFinalizado && maxTotalMinutos !== null
+    ? Math.max(0, maxTotalMinutos - (1 / 60))
+    : simTotalMinutos;
+
+  // Derivados del contador visual: al finalizar conserva la última ocupación del rango
+  const simDia           = Math.floor(simTotalVisual / 1440);
+  const simHoraMinutos   = simTotalVisual % 1440;
 
   useEffect(() => {
     verificarSaludBackend().then(setBackendActivo);
   }, []);
 
-  // Timer — incrementa simTotalMinutos; para cuando alcanza el límite del periodo
+  // Timer — anima con requestAnimationFrame para mantener movimiento fluido a 60fps
   useEffect(() => {
-    if (isPlaying) {
-      timerRef.current = setInterval(() => {
-        setSimTotalMinutos(prev => {
-          const next = prev + 3;
-          if (maxTotalMinutos !== null && next >= maxTotalMinutos) {
-            setIsPlaying(false);
-            return maxTotalMinutos; // congela en el último minuto
-          }
-          return next;
-        });
-      }, 50);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
+    if (!isPlaying) {
+      if (timerRef.current !== null) cancelAnimationFrame(timerRef.current);
+      timerRef.current = null;
+      lastFrameRef.current = null;
+      return;
     }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+
+    lastFrameRef.current = null;
+
+    const step = (timestamp: number) => {
+      const lastFrame = lastFrameRef.current ?? timestamp;
+      const deltaMs = timestamp - lastFrame;
+      lastFrameRef.current = timestamp;
+
+      let continuar = true;
+      setSimTotalMinutos(prev => {
+        const next = prev + (deltaMs / 1000) * 60;
+        if (maxTotalMinutos !== null && next >= maxTotalMinutos) {
+          continuar = false;
+          setIsPlaying(false);
+          return maxTotalMinutos;
+        }
+        return next;
+      });
+
+      if (continuar) {
+        timerRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    timerRef.current = requestAnimationFrame(step);
+
+    return () => {
+      if (timerRef.current !== null) cancelAnimationFrame(timerRef.current);
+      timerRef.current = null;
+      lastFrameRef.current = null;
+    };
   }, [isPlaying, maxTotalMinutos]);
 
   const handleReiniciar = () => {
@@ -466,7 +492,7 @@ export default function Home() {
         <main className="flex-1 relative overflow-hidden">
           <MapaRutas
             resultado={resultado}
-            simTiempoMinutos={simTotalMinutos}
+            simTiempoMinutos={simTotalVisual}
             onSelectVuelo={setVueloModal}
             selectedVuelo={vueloModal}
             umbralVerde={umbralVerde}
@@ -501,7 +527,7 @@ export default function Home() {
                     envios={rutasActivas}
                     aeropuertos={resultado.aeropuertos}
                     activeTab={activeTab}
-                    simTiempoMinutos={simTotalMinutos}
+                    simTiempoMinutos={simTotalVisual}
                     onSelectEnvio={setEnvioModal}
                     onSelectAeropuerto={setAeroModal}
                   />
@@ -585,7 +611,7 @@ export default function Home() {
       <ModalAeropuerto
         aeropuerto={aeroModal}
         rutasActivas={rutasActivas}
-        simTiempoMinutos={simTotalMinutos}
+        simTiempoMinutos={simTotalVisual}
         onClose={() => setAeroModal(null)}
       />
       <ModalVuelo
