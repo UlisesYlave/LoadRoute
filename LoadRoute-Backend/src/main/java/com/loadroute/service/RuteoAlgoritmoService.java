@@ -564,6 +564,9 @@ public class RuteoAlgoritmoService {
             rm.setDestino(envio.getDestino().getCodigo());
             rm.setMaletas(envio.getCantidadMaletas());
             rm.setSlaHoras(envio.getSlaHoras());
+            LocalDateTime recepcionGMT = envio.getRecepcionGMT();
+            rm.setRecepcionMinutosGMT(recepcionGMT.getHour() * 60 + recepcionGMT.getMinute());
+            rm.setRecepcionDiaOffset(diaOffset);
 
             List<TramoDTO> tramos = new ArrayList<>();
             for (Vuelo v : e.getValue()) {

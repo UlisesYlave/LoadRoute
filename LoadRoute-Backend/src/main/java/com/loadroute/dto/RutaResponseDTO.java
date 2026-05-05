@@ -165,6 +165,12 @@ public class RutaResponseDTO {
         @JsonProperty("slaHoras")
         private int slaHoras;
 
+        @JsonProperty("recepcionMinutosGMT")
+        private int recepcionMinutosGMT;
+
+        @JsonProperty("recepcionDiaOffset")
+        private int recepcionDiaOffset;
+
         @JsonProperty("tramos")
         private List<TramoDTO> tramos;
 
@@ -184,6 +190,12 @@ public class RutaResponseDTO {
 
         public int getSlaHoras() { return slaHoras; }
         public void setSlaHoras(int slaHoras) { this.slaHoras = slaHoras; }
+
+        public int getRecepcionMinutosGMT() { return recepcionMinutosGMT; }
+        public void setRecepcionMinutosGMT(int recepcionMinutosGMT) { this.recepcionMinutosGMT = recepcionMinutosGMT; }
+
+        public int getRecepcionDiaOffset() { return recepcionDiaOffset; }
+        public void setRecepcionDiaOffset(int recepcionDiaOffset) { this.recepcionDiaOffset = recepcionDiaOffset; }
 
         public List<TramoDTO> getTramos() { return tramos; }
         public void setTramos(List<TramoDTO> tramos) { this.tramos = tramos; }

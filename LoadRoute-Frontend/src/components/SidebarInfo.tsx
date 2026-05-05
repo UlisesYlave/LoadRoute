@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { RutaMuestra, AeropuertoDTO } from '@/types/rutas';
+import { calcularCargaAeropuertoActual, porcentajeOcupacion } from '@/utils/capacidad';
 
 interface SidebarInfoProps {
   envios: RutaMuestra[];
   aeropuertos: AeropuertoDTO[];
   activeTab: 'pedidos' | 'aeropuertos' | 'simulacion' | null;
+  simTiempoMinutos?: number;
   onSelectEnvio: (e: RutaMuestra) => void;
   onSelectAeropuerto: (a: AeropuertoDTO) => void;
 }
@@ -13,6 +15,7 @@ export default function SidebarInfo({
   envios,
   aeropuertos,
   activeTab,
+  simTiempoMinutos = 0,
   onSelectEnvio,
   onSelectAeropuerto,
 }: SidebarInfoProps) {
@@ -38,6 +41,50 @@ export default function SidebarInfo({
       a.pais.toLowerCase().includes(q)
     );
   });
+
+  const renderAeropuerto = (a: AeropuertoDTO) => {
+    const cargaActual = calcularCargaAeropuertoActual(a.codigo, envios, simTiempoMinutos);
+    const porcentaje = porcentajeOcupacion(cargaActual, a.capacidadMax);
+    const colorCarga =
+      cargaActual > a.capacidadMax
+        ? 'text-red-400'
+        : cargaActual > a.capacidadMax * 0.8
+          ? 'text-amber-400'
+          : 'text-emerald-400';
+
+    return (
+      <div
+        key={a.codigo}
+        onClick={() => onSelectAeropuerto(a)}
+        className="bg-[#122340] border border-slate-700/50 rounded-lg p-3 cursor-pointer
+                   hover:border-emerald-500/50 hover:bg-[#162a4d] transition-all"
+      >
+        <div className="flex justify-between items-center mb-1">
+          <span className="font-bold text-slate-200">{a.codigo}</span>
+          <span className="text-[10px] text-slate-400">{a.pais}</span>
+        </div>
+        <p className="text-xs text-slate-400 truncate">{a.ciudad}</p>
+        <p className="text-xs mt-1 text-slate-500">
+          Actual: <span className={`font-semibold ${colorCarga}`}>{cargaActual}</span>
+          <span className="text-slate-600">/{a.capacidadMax}</span>
+          <span className="mx-1.5 text-slate-700">|</span>
+          GMT{a.gmt >= 0 ? '+' : ''}{a.gmt}
+        </p>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-900/80">
+          <div
+            className={`h-full rounded-full transition-all duration-300 ${
+              cargaActual > a.capacidadMax
+                ? 'bg-red-500'
+                : cargaActual > a.capacidadMax * 0.8
+                  ? 'bg-amber-500'
+                  : 'bg-emerald-500'
+            }`}
+            style={{ width: `${porcentaje}%` }}
+          />
+        </div>
+      </div>
+    );
+  };
 
   if (activeTab === 'pedidos') {
     return (
@@ -121,25 +168,7 @@ export default function SidebarInfo({
           {filteredAero.length === 0 ? (
             <p className="text-center text-slate-600 text-xs pt-8">Sin resultados</p>
           ) : (
-            filteredAero.map(a => (
-              <div
-                key={a.codigo}
-                onClick={() => onSelectAeropuerto(a)}
-                className="bg-[#122340] border border-slate-700/50 rounded-lg p-3 cursor-pointer
-                           hover:border-emerald-500/50 hover:bg-[#162a4d] transition-all"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-slate-200">{a.codigo}</span>
-                  <span className="text-[10px] text-slate-400">{a.pais}</span>
-                </div>
-                <p className="text-xs text-slate-400 truncate">{a.ciudad}</p>
-                <p className="text-xs mt-1 text-slate-500">
-                  Cap. Máx: <span className="text-emerald-400">{a.capacidadMax}</span>
-                  <span className="mx-1.5 text-slate-700">|</span>
-                  GMT{a.gmt >= 0 ? '+' : ''}{a.gmt}
-                </p>
-              </div>
-            ))
+            filteredAero.map(renderAeropuerto)
           )}
         </div>
       </div>

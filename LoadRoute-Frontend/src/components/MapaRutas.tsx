@@ -13,6 +13,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import { RutaResponse, AeropuertoDTO } from '@/types/rutas';
+import { calcularCargaAeropuertoActual } from '@/utils/capacidad';
 import 'leaflet/dist/leaflet.css';
 
 type ModoMapa = 'sa' | 'alns' | 'ambos';
@@ -161,7 +162,7 @@ export default function MapaRutas({
             : modoMapa === 'alns'
               ? (resultadoALNS?.rutasMuestra || resultadoSA?.rutasMuestra || [])
               : [...(resultadoSA?.rutasMuestra || []), ...(resultadoALNS?.rutasMuestra || [])];
-          const cargaActual = getAirportCurrentLoad(a.codigo, rutasParaCarga, simTiempoMinutos);
+              const cargaActual = calcularCargaAeropuertoActual(a.codigo, rutasParaCarga, simTiempoMinutos);
           const pct = a.capacidadMax > 0 ? Math.round((cargaActual / a.capacidadMax) * 100) : 0;
           return (
             <CircleMarker
