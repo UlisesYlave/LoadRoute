@@ -56,12 +56,18 @@ public class EnvioDiaADiaController {
             fechaCreacionGMT = LocalDateTime.now(java.time.ZoneOffset.UTC);
         }
 
-        cargaDatosService.crearEnvioDiaADiaManual(clienteId, origenCodigo, destinoCodigo, fechaCreacionGMT, cantidadMaletas);
-
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "message", "Envío creado exitosamente."
-        ));
+        try {
+            cargaDatosService.crearEnvioDiaADiaManual(clienteId, origenCodigo, destinoCodigo, fechaCreacionGMT, cantidadMaletas);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Envío creado exitosamente."
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
     }
 
     @DeleteMapping("/limpiar")

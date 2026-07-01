@@ -584,17 +584,56 @@ public class SimulatedAnnealing {
     }
 
     private SolucionEstado construirGreedy(Map<String, Envio> envios) {
+        Queue<Envio> cola = new LinkedList<>(envios.values());
+        envios.clear();
+        
         SolucionEstado sol = new SolucionEstado(envios);
-        for (Envio envio : envios.values()) {
+        int splitCount = 1;
+
+        while (!cola.isEmpty()) {
+            Envio envio = cola.poll();
+            
             List<List<Vuelo>> rutas = red.buscarRutas(envio, true, vuelosCanceladosKeys, tiempoPlanificacion);
-            if (rutas.isEmpty())
-                rutas = red.buscarRutasRelajadas(envio, vuelosCanceladosKeys, tiempoPlanificacion);
+            List<Vuelo> mejorRuta = null;
+            int capacidadBotella = 0;
+            
             if (!rutas.isEmpty()) {
-                sol.asignarRuta(envio.getId(), rutas.get(0));
-                for (Vuelo v : rutas.get(0))
+                mejorRuta = rutas.get(0);
+                capacidadBotella = RedLogistica.calcularCapacidadCuelloBotella(mejorRuta);
+            } else {
+                rutas = red.buscarRutasRelajadas(envio, vuelosCanceladosKeys, tiempoPlanificacion);
+                if (!rutas.isEmpty()) {
+                    mejorRuta = rutas.get(0);
+                    capacidadBotella = envio.getCantidadMaletas();
+                }
+            }
+            
+            if (mejorRuta != null) {
+                if (capacidadBotella > 0 && capacidadBotella < envio.getCantidadMaletas()) {
+                    int cantidadParte1 = capacidadBotella;
+                    int cantidadRestante = envio.getCantidadMaletas() - capacidadBotella;
+                    
+                    envio.setCantidadMaletas(cantidadParte1);
+                    String nuevoId = envio.getId() + "_P" + splitCount++;
+                    
+                    Envio restante = new Envio(
+                        nuevoId, envio.getIdCliente(), envio.getOrigen(), envio.getDestino(), 
+                        envio.getFechaHoraRecepcion(), cantidadRestante
+                    );
+                    restante.setCustomDeadlineGMT(envio.getDeadlineGMT());
+                    cola.add(restante);
+                }
+                
+                sol.agregarEnvio(envio);
+                sol.asignarRuta(envio.getId(), mejorRuta);
+                for (Vuelo v : mejorRuta) {
                     v.reservar(envio.getCantidadMaletas());
+                }
+            } else {
+                sol.agregarEnvio(envio);
             }
         }
+        
         return sol;
     }
 

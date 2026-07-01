@@ -30,4 +30,7 @@ public interface EnvioDiaADiaRepository extends JpaRepository<EnvioDiaADiaEntity
     @Transactional
     @Query("UPDATE EnvioDiaADiaEntity e SET e.rutaDefinida = false")
     void resetAllRutasDefinidas();
+
+    @Query("SELECT COALESCE(SUM(e.cantidadMaletas), 0) FROM EnvioDiaADiaEntity e WHERE e.origen.codigo = :origenCodigo AND e.rutaDefinida = false")
+    int sumarMaletasPendientesPorAeropuerto(@Param("origenCodigo") String origenCodigo);
 }

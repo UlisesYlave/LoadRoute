@@ -360,6 +360,13 @@ public class CargaDatosService {
         AeropuertoEntity destino = aeropuertoRepository.findByCodigo(destinoCodigo)
                 .orElseThrow(() -> new IllegalArgumentException("Aeropuerto destino " + destinoCodigo + " no existe"));
 
+        int maletasPendientes = envioDiaADiaRepository.sumarMaletasPendientesPorAeropuerto(origenCodigo);
+        int capacidadDisponible = origen.getCapacidadMax() - maletasPendientes;
+
+        if (cantidadMaletas > capacidadDisponible) {
+            throw new IllegalArgumentException("El envío excede la capacidad del aeropuerto de origen. Capacidad disponible: " + Math.max(0, capacidadDisponible) + " maletas.");
+        }
+
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         String claveCompuesta = origenCodigo + "_MANUAL_" + uuid;
 

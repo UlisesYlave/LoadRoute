@@ -70,7 +70,7 @@ public class RedLogistica {
                 String key = vuelo.getId() + ":" + fechaLocal.toString();
 
                 if (vuelosCancelados != null && vuelosCancelados.contains(key)) continue;
-                if (soloConCapacidad && !vuelo.tieneCapacidad(maletas)) continue;
+                if (soloConCapacidad && vuelo.getCapacidadDisponible() <= 0) continue;
 
                 LocalDateTime llegada       = vuelo.getLlegadaGMT(proximaSalida);
 
@@ -137,5 +137,16 @@ public class RedLogistica {
             this.tiempoActual     = tiempoActual;
             this.ruta             = ruta;
         }
+    }
+
+    public static int calcularCapacidadCuelloBotella(List<Vuelo> ruta) {
+        if (ruta == null || ruta.isEmpty()) return 0;
+        int min = Integer.MAX_VALUE;
+        for (Vuelo v : ruta) {
+            if (v.getCapacidadDisponible() < min) {
+                min = v.getCapacidadDisponible();
+            }
+        }
+        return min;
     }
 }
