@@ -13,6 +13,8 @@ interface SidebarInfoProps {
   onSelectAeropuerto: (a: AeropuertoDTO) => void;
   umbralVerde?: number;
   umbralAmbar?: number;
+  filtroSemaforo?: 'todos' | 'verde' | 'ambar' | 'rojo';
+  onChangeFiltroSemaforo?: (f: 'todos' | 'verde' | 'ambar' | 'rojo') => void;
 }
 
 type OrdenAero = 'codigo' | 'ciudad' | 'ocupacion_desc' | 'ocupacion_asc';
@@ -27,6 +29,8 @@ function SidebarInfo({
   onSelectAeropuerto,
   umbralVerde = 30,
   umbralAmbar = 80,
+  filtroSemaforo = 'todos',
+  onChangeFiltroSemaforo,
 }: SidebarInfoProps) {
   const [searchEnvios,     setSearchEnvios]     = useState('');
   const [searchAero,       setSearchAero]       = useState('');
@@ -61,6 +65,22 @@ function SidebarInfo({
     const q = searchAero.toLowerCase();
     let result = aeropuertos.filter(a => {
       if (continenteFilter && a.continente !== continenteFilter) return false;
+
+      // Filtro por semáforo
+      if (filtroSemaforo !== 'todos') {
+        const cargaActual = cargasAeropuertoOverride?.[a.codigo]
+          ?? calcularCargaAeropuertoActual(a.codigo, envios, simTiempoMinutos);
+        const porcentaje = a.capacidadMax > 0 ? (cargaActual / a.capacidadMax) * 100 : 0;
+        
+        const esVerde = porcentaje <= umbralVerde;
+        const esAmbar = !esVerde && porcentaje <= umbralAmbar;
+        const esRojo = !esVerde && !esAmbar;
+
+        if (filtroSemaforo === 'verde' && !esVerde) return false;
+        if (filtroSemaforo === 'ambar' && !esAmbar) return false;
+        if (filtroSemaforo === 'rojo' && !esRojo) return false;
+      }
+
       if (!q) return true;
       return (
         a.codigo.toLowerCase().includes(q) ||
@@ -81,7 +101,7 @@ function SidebarInfo({
       const pctB = b.capacidadMax > 0 ? cargaB / b.capacidadMax : 0;
       return ordenAero === 'ocupacion_desc' ? pctB - pctA : pctA - pctB;
     });
-  }, [aeropuertos, searchAero, continenteFilter, ordenAero, cargasAeropuertoOverride, envios, simTiempoMinutos]);
+  }, [aeropuertos, searchAero, continenteFilter, ordenAero, cargasAeropuertoOverride, envios, simTiempoMinutos, filtroSemaforo, umbralVerde, umbralAmbar]);
 
   // Resetear páginas cuando cambian búsquedas o filtros
   useEffect(() => {
@@ -90,7 +110,7 @@ function SidebarInfo({
 
   useEffect(() => {
     setAeroPage(1);
-  }, [searchAero, continenteFilter, ordenAero]);
+  }, [searchAero, continenteFilter, ordenAero, filtroSemaforo]);
 
   // Ajustar cantidad de elementos por página según la altura de la pantalla
   useEffect(() => {
@@ -309,6 +329,50 @@ function SidebarInfo({
             <option value="ocupacion_desc">↓ Ocupación (mayor primero)</option>
             <option value="ocupacion_asc">↑ Ocupación (menor primero)</option>
           </select>
+
+          {/* Filtro Semáforo */}
+          <div className="flex gap-1.5 pt-1">
+            <button
+              onClick={() => onChangeFiltroSemaforo?.('todos')}
+              className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+                filtroSemaforo === 'todos'
+                  ? 'bg-slate-700 bg-opacity-60 text-slate-100 border-slate-600'
+                  : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => onChangeFiltroSemaforo?.('verde')}
+              className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+                filtroSemaforo === 'verde'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                  : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              Verde
+            </button>
+            <button
+              onClick={() => onChangeFiltroSemaforo?.('ambar')}
+              className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+                filtroSemaforo === 'ambar'
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              Ámbar
+            </button>
+            <button
+              onClick={() => onChangeFiltroSemaforo?.('rojo')}
+              className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+                filtroSemaforo === 'rojo'
+                  ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                  : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+              }`}
+            >
+              Rojo
+            </button>
+          </div>
         </div>
 
         {/* Lista */}
@@ -357,7 +421,8 @@ export default React.memo(SidebarInfo, (prev, next) => {
     prev.onSelectEnvio   !== next.onSelectEnvio   ||
     prev.onSelectAeropuerto !== next.onSelectAeropuerto ||
     prev.umbralVerde     !== next.umbralVerde     ||
-    prev.umbralAmbar     !== next.umbralAmbar
+    prev.umbralAmbar     !== next.umbralAmbar     ||
+    prev.filtroSemaforo  !== next.filtroSemaforo
   ) {
     return false;
   }

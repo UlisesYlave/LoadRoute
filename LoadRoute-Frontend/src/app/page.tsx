@@ -250,6 +250,8 @@ export default function Home() {
 
   const [filtrosAvionesMapa, setFiltrosAvionesMapa] = useState<FiltrosAvionesMapa>(FILTROS_AVIONES_INICIALES);
   const [cancelacionesLocales, setCancelacionesLocales] = useState<Record<number, number[]>>({});
+  const [filtroSemaforoVuelos, setFiltroSemaforoVuelos] = useState<'todos' | 'verde' | 'ambar' | 'rojo'>('todos');
+  const [filtroSemaforoAero, setFiltroSemaforoAero] = useState<'todos' | 'verde' | 'ambar' | 'rojo'>('todos');
 
   const cancelacionesBDMap = useMemo(() => {
     const map: Record<number, number[]> = {};
@@ -481,6 +483,8 @@ export default function Home() {
     colapsoDetectadoRef.current = false;
     setCancelacionesLocales({});
     setCancelacionesBD([]);
+    setFiltroSemaforoVuelos('todos');
+    setFiltroSemaforoAero('todos');
   };
 
   const handleTabClick = useCallback((id: TabId) => {
@@ -654,6 +658,12 @@ export default function Home() {
       rutasActivas={rutasActivas}
       diasSimulados={diasSimulados}
       maxSimDia={maxSimDia}
+      
+      // Filtros semáforo
+      filtroSemaforoVuelos={filtroSemaforoVuelos}
+      setFiltroSemaforoVuelos={setFiltroSemaforoVuelos}
+      filtroSemaforoAero={filtroSemaforoAero}
+      setFiltroSemaforoAero={setFiltroSemaforoAero}
       
       // Cancelaciones
       cancelacionesPorDia={cancelacionesPorDiaCombinadas}

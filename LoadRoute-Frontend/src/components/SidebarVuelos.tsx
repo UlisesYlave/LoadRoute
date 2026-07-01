@@ -14,9 +14,10 @@ interface SidebarVuelosProps {
   umbralAmbar?: number;
   onSelectVuelo?: (vuelo: TramoDTO) => void;
   selectedVuelo?: TramoDTO | null;
-  fechaInicioRaw?: string;
   aeropuertos?: AeropuertoDTO[];
   simTiempoMinutos?: number;
+  filtroSemaforo?: 'todos' | 'verde' | 'ambar' | 'rojo';
+  onChangeFiltroSemaforo?: (f: 'todos' | 'verde' | 'ambar' | 'rojo') => void;
 }
 
 function formatMinutosGMT(minutos: number): string {
@@ -63,6 +64,8 @@ export default function SidebarVuelos({
   fechaInicioRaw,
   aeropuertos,
   simTiempoMinutos,
+  filtroSemaforo = 'todos',
+  onChangeFiltroSemaforo,
 }: SidebarVuelosProps) {
   const [selectedDia, setSelectedDia] = useState<number>(simDia);
   const [searchTerm,  setSearchTerm]  = useState('');
@@ -126,7 +129,7 @@ export default function SidebarVuelos({
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortKey, selectedDia, filtroEstado]);
+  }, [searchTerm, sortKey, selectedDia, filtroEstado, filtroSemaforo]);
 
   // Ajustar cantidad de elementos por página según la altura de la pantalla
   useEffect(() => {
@@ -190,6 +193,25 @@ export default function SidebarVuelos({
       });
     }
 
+    if (filtroSemaforo !== 'todos') {
+      result = result.filter(v => {
+        const isCancelled = cancelacionesActivas.has(v.vueloId);
+        if (isCancelled) return false;
+
+        const oc = ocupacionPorVuelo[v.vueloId];
+        const pct = oc ? Math.round((oc.carga / Math.max(oc.capacidad, 1)) * 100) : 0;
+        
+        const esVerde = pct <= umbralVerde;
+        const esAmbar = !esVerde && pct <= umbralAmbar;
+        const esRojo = !esVerde && !esAmbar;
+
+        if (filtroSemaforo === 'verde' && !esVerde) return false;
+        if (filtroSemaforo === 'ambar' && !esAmbar) return false;
+        if (filtroSemaforo === 'rojo' && !esRojo) return false;
+        return true;
+      });
+    }
+
     if (sortKey !== 'none') {
       result = [...result].sort((a, b) => {
         const ocA = ocupacionPorVuelo[a.vueloId];
@@ -220,7 +242,7 @@ export default function SidebarVuelos({
     }
 
     return result;
-  }, [filteredBySearch, filtroEstado, cancelacionesActivas, sortKey, ocupacionPorVuelo, isVueloEnElAire]);
+  }, [filteredBySearch, filtroEstado, cancelacionesActivas, sortKey, ocupacionPorVuelo, isVueloEnElAire, filtroSemaforo, umbralVerde, umbralAmbar]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginatedVuelos = useMemo(() => {
@@ -311,6 +333,50 @@ export default function SidebarVuelos({
             }`}
           >
             Cancelados
+          </button>
+        </div>
+
+        {/* Filtros de Semáforo */}
+        <div className="flex gap-1.5 pt-0.5">
+          <button
+            onClick={() => onChangeFiltroSemaforo?.('todos')}
+            className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+              filtroSemaforo === 'todos'
+                ? 'bg-slate-700 bg-opacity-60 text-slate-100 border-slate-600'
+                : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+            }`}
+          >
+            Todos Colores
+          </button>
+          <button
+            onClick={() => onChangeFiltroSemaforo?.('verde')}
+            className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+              filtroSemaforo === 'verde'
+                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+            }`}
+          >
+            Verde
+          </button>
+          <button
+            onClick={() => onChangeFiltroSemaforo?.('ambar')}
+            className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+              filtroSemaforo === 'ambar'
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+            }`}
+          >
+            Ámbar
+          </button>
+          <button
+            onClick={() => onChangeFiltroSemaforo?.('rojo')}
+            className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${
+              filtroSemaforo === 'rojo'
+                ? 'bg-red-500/20 text-red-300 border-red-500/30'
+                : 'bg-transparent text-slate-400 border-slate-800/40 hover:text-slate-200'
+            }`}
+          >
+            Rojo
           </button>
         </div>
 
