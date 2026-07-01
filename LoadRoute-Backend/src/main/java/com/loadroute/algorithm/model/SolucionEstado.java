@@ -362,6 +362,11 @@ public class SolucionEstado {
     }
     public Set<String>              getIdsNoAceptados() { return Collections.unmodifiableSet(idsNoAceptados); }
 
+    public void agregarEnvio(Envio envio) {
+        this.envios.put(envio.getId(), envio);
+        this.asignaciones.putIfAbsent(envio.getId(), new ArrayList<>());
+    }
+
     @Override
     public String toString() {
         return String.format("SolucionEstado{envios=%d, asignados=%d, costo=%.2f}",
