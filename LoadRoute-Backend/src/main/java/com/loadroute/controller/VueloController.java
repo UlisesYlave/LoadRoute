@@ -96,10 +96,16 @@ public class VueloController {
     public ResponseEntity<String> cancelarVuelo(
             @PathVariable Long id,
             @RequestParam String fecha,
-            @RequestParam(required = false, defaultValue = "2") int escenario) {
+            @RequestParam(required = false, defaultValue = "2") int escenario,
+            @RequestHeader(value = "X-Session-ID", required = false) String sessionId) {
         
         if (escenario == 3) {
             return ResponseEntity.badRequest().body("No se permiten cancelaciones en el escenario de colapso.");
+        }
+        
+        String owner = (escenario == 1) ? asyncJobService.getActivePeriodoOwner() : asyncJobService.getActiveDiaADiaOwner();
+        if (owner != null && !owner.equals(sessionId)) {
+            return ResponseEntity.status(403).body("Solo el usuario que inició la simulación puede cancelar vuelos.");
         }
         
         Optional<VueloEntity> optVuelo = vueloRepository.findById(id);
@@ -155,10 +161,16 @@ public class VueloController {
     public ResponseEntity<String> reactivarVuelo(
             @PathVariable Long id,
             @RequestParam String fecha,
-            @RequestParam(required = false, defaultValue = "2") int escenario) {
+            @RequestParam(required = false, defaultValue = "2") int escenario,
+            @RequestHeader(value = "X-Session-ID", required = false) String sessionId) {
             
         if (escenario == 3) {
             return ResponseEntity.badRequest().body("No se permiten reactivaciones en el escenario de colapso.");
+        }
+        
+        String owner = (escenario == 1) ? asyncJobService.getActivePeriodoOwner() : asyncJobService.getActiveDiaADiaOwner();
+        if (owner != null && !owner.equals(sessionId)) {
+            return ResponseEntity.status(403).body("Solo el usuario que inició la simulación puede reactivar vuelos.");
         }
             
         LocalDate cancellationDate;

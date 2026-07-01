@@ -51,6 +51,11 @@ public class RuteoAsyncJobService {
 
     private String activeDiaADiaJobId;
     private String activePeriodoJobId;
+    private String activeDiaADiaOwner;
+    private String activePeriodoOwner;
+
+    public String getActiveDiaADiaOwner() { return activeDiaADiaOwner; }
+    public String getActivePeriodoOwner() { return activePeriodoOwner; }
 
     public LocalDateTime getActiveJobCurrentTime() {
         if (activeDiaADiaJobId == null) {
@@ -74,7 +79,8 @@ public class RuteoAsyncJobService {
 
     public SimulacionJobDTO iniciar(int escenario,
                                     String fechaInicio,
-                                    String fechaFin) {
+                                    String fechaFin,
+                                    String sessionId) {
         cleanupExpiredJobs();
 
         if (escenario == 1) {
@@ -97,8 +103,10 @@ public class RuteoAsyncJobService {
         String jobId = UUID.randomUUID().toString();
         if (escenario == 2) {
             activeDiaADiaJobId = jobId;
+            activeDiaADiaOwner = sessionId;
         } else if (escenario == 1) {
             activePeriodoJobId = jobId;
+            activePeriodoOwner = sessionId;
         }
         SimulacionJobDTO job = new SimulacionJobDTO(jobId, "PENDING", 0, "Iniciando simulacion...");
         jobs.put(jobId, job);
