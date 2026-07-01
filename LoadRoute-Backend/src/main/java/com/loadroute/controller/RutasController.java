@@ -68,7 +68,8 @@ public class RutasController {
             @RequestPart(value = "enviosFiles", required = false)     List<MultipartFile> enviosFiles,
             @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
             @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
-            @RequestParam(value = "fechaFin",    required = false)    String fechaFin
+            @RequestParam(value = "fechaFin",    required = false)    String fechaFin,
+            @RequestHeader(value = "X-Session-ID", required = false)  String sessionId
     ) throws IOException {
         procesarArchivos(aeropuertosFile, vuelosFile, enviosFiles);
         validarDatos();
@@ -76,7 +77,8 @@ public class RutasController {
         return ResponseEntity.ok(asyncJobService.iniciar(
                 escenario,
                 fechaInicio,
-                fechaFin
+                fechaFin,
+                sessionId
         ));
     }
 

@@ -11,6 +11,19 @@ import { API_ENDPOINTS } from '@/config/constants';
 import { AlgoritmoSeleccion, RutaResponse, SimulacionJob } from '@/types/rutas';
 
 /**
+ * Genera o recupera el Session ID para identificar al dueño de la simulación.
+ */
+function getSessionId(): string {
+  if (typeof window === 'undefined') return '';
+  let sid = localStorage.getItem('sessionId');
+  if (!sid) {
+    sid = crypto.randomUUID();
+    localStorage.setItem('sessionId', sid);
+  }
+  return sid;
+}
+
+/**
  * Ejecuta la simulación subiendo los 3 archivos de datos al backend.
  */
 export async function ejecutarSimulacion(
@@ -77,6 +90,9 @@ export async function iniciarSimulacion(
   const response = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}?${params.toString()}`, {
     method: 'POST',
     body: formData,
+    headers: {
+      'X-Session-ID': getSessionId()
+    }
   });
 
   if (!response.ok) {
@@ -170,7 +186,10 @@ export async function cancelarVuelo(vueloId: number, fecha: string, escenario?: 
   const params = new URLSearchParams({ fecha });
   if (escenario !== undefined) params.set('escenario', String(escenario));
   const response = await fetch(`${API_ENDPOINTS.VUELOS}/${vueloId}/cancelar?${params.toString()}`, {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      'X-Session-ID': getSessionId()
+    }
   });
   if (!response.ok) {
     const msg = await response.text();
@@ -183,7 +202,10 @@ export async function reactivarVuelo(vueloId: number, fecha: string, escenario?:
   const params = new URLSearchParams({ fecha });
   if (escenario !== undefined) params.set('escenario', String(escenario));
   const response = await fetch(`${API_ENDPOINTS.VUELOS}/${vueloId}/reactivar?${params.toString()}`, {
-    method: 'POST'
+    method: 'POST',
+    headers: {
+      'X-Session-ID': getSessionId()
+    }
   });
   if (!response.ok) {
     const msg = await response.text();
