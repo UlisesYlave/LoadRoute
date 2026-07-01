@@ -94,6 +94,11 @@ interface DashboardViewProps {
   simTotalMinutos: number;
   onCancelarVuelo: (vueloId: number, fecha: string) => Promise<void>;
   onReactivarVuelo: (vueloId: number, fecha: string) => Promise<void>;
+
+  filtroSemaforoVuelos: 'todos' | 'verde' | 'ambar' | 'rojo';
+  setFiltroSemaforoVuelos: (f: 'todos' | 'verde' | 'ambar' | 'rojo') => void;
+  filtroSemaforoAero: 'todos' | 'verde' | 'ambar' | 'rojo';
+  setFiltroSemaforoAero: (f: 'todos' | 'verde' | 'ambar' | 'rojo') => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -146,6 +151,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   simTotalMinutos,
   onCancelarVuelo,
   onReactivarVuelo,
+  filtroSemaforoVuelos,
+  setFiltroSemaforoVuelos,
+  filtroSemaforoAero,
+  setFiltroSemaforoAero,
 }) => {
   // ── MATRIZ DE CONFIGURACIÓN POR ESCENARIO ──
   const escenario = resultado?.escenario ?? 1;
@@ -350,6 +359,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onModoMapa={() => {}}
             filtrosAviones={filtrosAvionesMapa}
             cancelacionesPorDia={cancelacionesPorDia}
+            filtroSemaforoVuelos={filtroSemaforoVuelos}
+            filtroSemaforoAero={filtroSemaforoAero}
           />
 
           {/* PANEL LATERAL IZQUIERDO */}
@@ -383,6 +394,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onSelectAeropuerto={handleSelectAeropuerto}
                     umbralVerde={umbralVerde}
                     umbralAmbar={umbralAmbar}
+                    filtroSemaforo={filtroSemaforoAero}
+                    onChangeFiltroSemaforo={setFiltroSemaforoAero}
                   />
                 )}
                 {activeTab === 'simulacion' && (
@@ -424,6 +437,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     fechaInicioRaw={fechaInicioRaw}
                     aeropuertos={resultado.aeropuertos}
                     simTiempoMinutos={simTotalVisual}
+                    filtroSemaforo={filtroSemaforoVuelos}
+                    onChangeFiltroSemaforo={setFiltroSemaforoVuelos}
                   />
                 )}
                 {activeTab === 'administracion' && (

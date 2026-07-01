@@ -38,6 +38,8 @@ interface MapaRutasProps {
   onModoMapa: (modo: ModoMapa) => void;
   filtrosAviones?: FiltrosAvionesMapa;
   cancelacionesPorDia?: number[][];
+  filtroSemaforoVuelos?: 'todos' | 'verde' | 'ambar' | 'rojo';
+  filtroSemaforoAero?: 'todos' | 'verde' | 'ambar' | 'rojo';
 }
 
 // Color fijo para aeropuertos: azul del header en operación normal, rojo en colapso
@@ -241,6 +243,8 @@ export default function MapaRutas({
   modoMapa,
   filtrosAviones,
   cancelacionesPorDia,
+  filtroSemaforoVuelos = 'todos',
+  filtroSemaforoAero = 'todos',
 }: MapaRutasProps) {
   const aeropuertos = resultado?.aeropuertos || [];
   const resultadoSA = resultado?.resultadoSA;
@@ -389,7 +393,18 @@ export default function MapaRutas({
         })}
 
         {/* Marcadores de aeropuertos */}
-        {aeropuertos.map(a => (
+        {aeropuertos.filter(a => {
+          if (filtroSemaforoAero === 'todos') return true;
+          const carga = cargasAeropuertos[a.codigo] || 0;
+          const pct = a.capacidadMax > 0 ? (carga / a.capacidadMax) * 100 : 0;
+          const esVerde = pct <= umbralVerde;
+          const esAmbar = !esVerde && pct <= umbralAmbar;
+          const esRojo = !esVerde && !esAmbar;
+          if (filtroSemaforoAero === 'verde') return esVerde;
+          if (filtroSemaforoAero === 'ambar') return esAmbar;
+          if (filtroSemaforoAero === 'rojo') return esRojo;
+          return true;
+        }).map(a => (
           <AirportMarker
             key={a.codigo}
             aeropuerto={a}
@@ -401,7 +416,18 @@ export default function MapaRutas({
         ))}
 
         {/* Aviones SA en vuelo */}
-        {mostrarSA && activePlanesSA.map((t) => (
+        {mostrarSA && activePlanesSA.filter(t => {
+          if (filtroSemaforoVuelos === 'todos') return true;
+          const carga = cargaPorVueloSA[`${t.vueloId}-${t.diaOffset}`] || 0;
+          const pct = (carga / Math.max(t.capacidad, 1)) * 100;
+          const esVerde = pct <= umbralVerde;
+          const esAmbar = !esVerde && pct <= umbralAmbar;
+          const esRojo = !esVerde && !esAmbar;
+          if (filtroSemaforoVuelos === 'verde') return esVerde;
+          if (filtroSemaforoVuelos === 'ambar') return esAmbar;
+          if (filtroSemaforoVuelos === 'rojo') return esRojo;
+          return true;
+        }).map((t) => (
           <PlaneMarker
             key={`plane-sa-${t.vueloId}-${t.diaOffset}`}
             tramo={t}
@@ -415,7 +441,10 @@ export default function MapaRutas({
         ))}
 
         {/* Aviones SA vacíos en vuelo */}
-        {mostrarSA && emptyPlanesSAFiltered.map((t) => (
+        {mostrarSA && emptyPlanesSAFiltered.filter(t => {
+          if (filtroSemaforoVuelos === 'todos') return true;
+          return filtroSemaforoVuelos === 'verde';
+        }).map((t) => (
           <PlaneMarker
             key={`plane-sa-empty-${t.vueloId}-${t.diaOffset}`}
             tramo={t}
