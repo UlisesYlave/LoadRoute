@@ -1,0 +1,105 @@
+name: Despliegue Automático LoadRoute
+
+on:
+  workflow_dispatch:
+  
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar el código fuente
+        uses: actions/checkout@v3
+
+      # ==========================================
+      # FASE DE COMPILACIÓN DEL BACKEND (JAVA)
+      # ==========================================
+      - name: 2. Configurar Java JDK 21
+        uses: actions/setup-java@v3
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: 3. Compilar el Backend (.jar)
+        run: |
+          cd LoadRoute-Backend
+          mvn clean package -DskipTests
+
+      # ==========================================
+      # FASE DE COMPILACIÓN DEL FRONTEND (NEXT.JS)
+      # ==========================================
+      - name: 4. Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: 5. Instalar y Compilar el Frontend
+        run: |
+          cd LoadRoute-Frontend
+          npm install
+          # Creamos el .env temporal en GitHub Actions para "quemar" la URL del proxy inverso (Nginx)
+          # Como acordamos, ya no lleva el puerto 8081 porque Nginx escucha en el puerto 80 por defecto
+          echo "NEXT_PUBLIC_BACKEND_URL=http://${{ secrets.SERVER_IP }}" > .env
+          npm run build
+          # Comprimimos la carpeta estática 'out' generada por el build
+          tar -czf out.tar.gz out/
+
+      - name: 6. Preparar archivos para envío (Staging)
+        run: |
+          # Creamos una carpeta temporal en el servidor de GitHub
+          mkdir -p deploy_staging
+          
+          # Copiamos el .jar y el comprimido a esta carpeta (quedan sueltos al mismo nivel)
+          cp LoadRoute-Backend/target/loadroute-backend-0.2.0.jar deploy_staging/
+          cp LoadRoute-Frontend/out.tar.gz deploy_staging/
+
+      # ==========================================
+      # FASE DE TRANSFERENCIA (SCP)
+      # ==========================================
+      - name: 7. Subir archivos compilados al servidor PUCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          # Enviamos el .jar compilado y el comprimido del frontend
+          source: "deploy_staging/*"
+          target: "~/despliegue"
+          strip_components: 1
+          rm: false
+
+      # ==========================================
+      # FASE DE DESPLIEGUE Y CONFIGURACIÓN ESTRUCTURAL (SSH)
+      # ==========================================
+      - name: 8. Organizar estructura unificada y reiniciar servicios en el servidor
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            cd ~/despliegue
+
+            # 1. Limpiar procesos actuales de PM2 para evitar colisiones de puertos o nombres
+            pm2 delete all || true
+
+            # 2. Mover y extraer la carpeta 'out' en la raíz de ~/despliegue (al lado del .jar)
+            rm -rf out/
+            if [ -f out.tar.gz ]; then
+                tar -xzf out.tar.gz
+                rm out.tar.gz
+            fi
+
+            # 3. Levantar el Backend inyectando dinámicamente tu .env único de la raíz
+            # El comando lee cada línea del .env del servidor y la exporta como variable de entorno de Linux
+            pm2 start "java -Xms512m -Xmx1024m -jar loadroute-backend-0.2.0.jar --server.port=8081" --name loadroute-backend
+
+            # 4. Levantar el Frontend sirviendo la carpeta 'out' que ahora está al mismo nivel
+            pm2 start "serve -s out -l 3000" --name loadroute-frontend
+
+            # Guardar la lista de procesos activos en PM2 para que sobrevivan a reinicios del servidor
+            pm2 save
+
+            # 6. Forzar la recarga de Nginx de forma segura pasando la contraseña de sudoer por tubería
+            echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S nginx -t
+            echo "${{ secrets.SERVER_PASSWORD }}" | sudo -S systemctl restart nginx
