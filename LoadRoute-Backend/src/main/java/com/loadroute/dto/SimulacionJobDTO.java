@@ -35,6 +35,12 @@ public class SimulacionJobDTO {
     @JsonProperty("owner")
     private String owner;
 
+    @JsonProperty("fechaInicio")
+    private String fechaInicio;
+
+    @JsonProperty("fechaFin")
+    private String fechaFin;
+
     public SimulacionJobDTO() {}
 
     public SimulacionJobDTO(String jobId, String status, int progress, String message) {
@@ -72,6 +78,12 @@ public class SimulacionJobDTO {
     public String getError() { return error; }
     public void setError(String error) { this.error = error; }
 
+    public String getFechaInicio() { return fechaInicio; }
+    public void setFechaInicio(String fechaInicio) { this.fechaInicio = fechaInicio; }
+
+    public String getFechaFin() { return fechaFin; }
+    public void setFechaFin(String fechaFin) { this.fechaFin = fechaFin; }
+
     public synchronized SimulacionJobDTO copyStatus() {
         SimulacionJobDTO dto = new SimulacionJobDTO(jobId, status, progress, message);
         dto.setError(error);
@@ -79,6 +91,8 @@ public class SimulacionJobDTO {
         dto.setChunkCount(chunks != null ? chunks.size() : 0);
         dto.setChunkStart(null);
         dto.setOwner(owner);
+        dto.setFechaInicio(fechaInicio);
+        dto.setFechaFin(fechaFin);
         return dto;
     }
 
@@ -90,6 +104,8 @@ public class SimulacionJobDTO {
         dto.setChunkCount(total);
         dto.setChunkStart(inicio);
         dto.setOwner(owner);
+        dto.setFechaInicio(fechaInicio);
+        dto.setFechaFin(fechaFin);
         dto.setChunks(new ArrayList<>(chunks.subList(inicio, total)));
         return dto;
     }

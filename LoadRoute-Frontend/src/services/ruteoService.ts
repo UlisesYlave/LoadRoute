@@ -13,7 +13,7 @@ import { AlgoritmoSeleccion, RutaResponse, SimulacionJob } from '@/types/rutas';
 /**
  * Genera o recupera el Session ID para identificar al dueño de la simulación.
  */
-function getSessionId(): string {
+export function getSessionId(): string {
   if (typeof window === 'undefined') return '';
   let sid = localStorage.getItem('sessionId');
   if (!sid) {
@@ -206,6 +206,14 @@ async function esperarResultadoSimulacion(
       throw err;
     }
   }
+}
+
+export async function unirseASimulacion(
+  jobId: string,
+  onProgress?: (job: SimulacionJob) => void,
+  signal?: AbortSignal
+): Promise<RutaResponse[]> {
+  return esperarResultadoSimulacion(jobId, onProgress, signal);
 }
 
 /**

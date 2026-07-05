@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Controlador REST para los endpoints de ruteo de Tasf.B2B.
@@ -80,6 +81,11 @@ public class RutasController {
                 fechaFin,
                 sessionId
         ));
+    }
+
+    @GetMapping("/simular-async/active")
+    public ResponseEntity<Map<Integer, SimulacionJobDTO>> trabajosActivos() {
+        return ResponseEntity.ok(asyncJobService.obtenerTrabajosActivos());
     }
 
     @GetMapping("/simular-async/{jobId}")

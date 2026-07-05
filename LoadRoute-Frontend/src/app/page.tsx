@@ -5,7 +5,7 @@ import ControlPanel from '@/components/ControlPanel';
 import AdminPanel from '@/components/AdminPanel';
 import { ColapsoDatos } from '@/components/ModalColapso';
 import { RutaResponse, RutaMuestra, AeropuertoDTO, TramoDTO, FiltrosAvionesMapa } from '@/types/rutas';
-import { verificarSaludBackend, cancelarVuelo as cancelarVueloApi, reactivarVuelo as reactivarVueloApi, obtenerVuelosCancelados, eliminarSimulacion } from '@/services/ruteoService';
+import { verificarSaludBackend, cancelarVuelo as cancelarVueloApi, reactivarVuelo as reactivarVueloApi, obtenerVuelosCancelados, eliminarSimulacion, getSessionId } from '@/services/ruteoService';
 import { calcularUltimasCargasAeropuertos, calcularCargaAeropuertoActual } from '@/utils/capacidad';
 import { IconSettings } from '@/components/icons';
 import { useSimulationTimer } from '@/hooks/useSimulationTimer';
@@ -253,6 +253,7 @@ export default function Home() {
 
   useEffect(() => {
     // Verificar salud del backend al iniciar
+    getSessionId();
     verificarSaludBackend();
     cargarCancelacionesBD();
   }, [cargarCancelacionesBD]);
@@ -480,7 +481,10 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     if (activeJobIdRef.current) {
-      if (resultado?.escenario !== 2) {
+      const sessionId = getSessionId();
+      const isOwnerOfJob = !!(jobOwner && sessionId && jobOwner === sessionId);
+      const esDiaADia = resultado?.escenario === 2;
+      if (isOwnerOfJob && !esDiaADia) {
         eliminarSimulacion(activeJobIdRef.current).catch(() => undefined);
       }
       activeJobIdRef.current = null;

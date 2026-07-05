@@ -52,11 +52,14 @@ public class RuteoAsyncJobService {
 
     private String activeDiaADiaJobId;
     private String activePeriodoJobId;
+    private String activeColapsoJobId;
     private String activeDiaADiaOwner;
     private String activePeriodoOwner;
+    private String activeColapsoOwner;
 
     public String getActiveDiaADiaOwner() { return activeDiaADiaOwner; }
     public String getActivePeriodoOwner() { return activePeriodoOwner; }
+    public String getActiveColapsoOwner() { return activeColapsoOwner; }
 
     public LocalDateTime getActiveJobCurrentTime() {
         if (activeDiaADiaJobId == null) {
@@ -101,6 +104,13 @@ public class RuteoAsyncJobService {
             }
         }
 
+        if (escenario == 3 && activeColapsoJobId != null) {
+            SimulacionJobDTO activeJob = jobs.get(activeColapsoJobId);
+            if (activeJob != null && ("RUNNING".equals(activeJob.getStatus()) || "PENDING".equals(activeJob.getStatus()))) {
+                return activeJob.copyStatus();
+            }
+        }
+
         String jobId = UUID.randomUUID().toString();
         if (escenario == 2) {
             activeDiaADiaJobId = jobId;
@@ -108,9 +118,14 @@ public class RuteoAsyncJobService {
         } else if (escenario == 1) {
             activePeriodoJobId = jobId;
             activePeriodoOwner = sessionId;
+        } else if (escenario == 3) {
+            activeColapsoJobId = jobId;
+            activeColapsoOwner = sessionId;
         }
         SimulacionJobDTO job = new SimulacionJobDTO(jobId, "PENDING", 0, "Iniciando simulacion...");
         job.setOwner(sessionId);
+        job.setFechaInicio(fechaInicio);
+        job.setFechaFin(fechaFin);
         jobs.put(jobId, job);
         lastPolledAt.put(jobId, System.currentTimeMillis());
 
@@ -226,6 +241,10 @@ public class RuteoAsyncJobService {
             activePeriodoJobId = null;
             activePeriodoOwner = null;
         }
+        if (jobId.equals(activeColapsoJobId)) {
+            activeColapsoJobId = null;
+            activeColapsoOwner = null;
+        }
         finishedAt.remove(jobId);
         lastPolledAt.remove(jobId);
         cancelarTarea(jobId);
@@ -269,6 +288,10 @@ public class RuteoAsyncJobService {
                         activePeriodoJobId = null;
                         activePeriodoOwner = null;
                         System.out.println("La simulación de Periodo [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
+                    } else if (jobId.equals(activeColapsoJobId)) {
+                        activeColapsoJobId = null;
+                        activeColapsoOwner = null;
+                        System.out.println("La simulación de Colapso [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
                     } else {
                         System.out.println("La simulación [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
                     }
@@ -295,6 +318,29 @@ public class RuteoAsyncJobService {
                 lastPolledAt.remove(entry.getKey());
             }
         }
+    }
+
+    public Map<Integer, SimulacionJobDTO> obtenerTrabajosActivos() {
+        Map<Integer, SimulacionJobDTO> active = new ConcurrentHashMap<>();
+        if (activePeriodoJobId != null) {
+            SimulacionJobDTO job = jobs.get(activePeriodoJobId);
+            if (job != null && ("RUNNING".equals(job.getStatus()) || "PENDING".equals(job.getStatus()))) {
+                active.put(1, job.copyStatus());
+            }
+        }
+        if (activeDiaADiaJobId != null) {
+            SimulacionJobDTO job = jobs.get(activeDiaADiaJobId);
+            if (job != null && ("RUNNING".equals(job.getStatus()) || "PENDING".equals(job.getStatus()))) {
+                active.put(2, job.copyStatus());
+            }
+        }
+        if (activeColapsoJobId != null) {
+            SimulacionJobDTO job = jobs.get(activeColapsoJobId);
+            if (job != null && ("RUNNING".equals(job.getStatus()) || "PENDING".equals(job.getStatus()))) {
+                active.put(3, job.copyStatus());
+            }
+        }
+        return active;
     }
 
     @jakarta.annotation.PreDestroy

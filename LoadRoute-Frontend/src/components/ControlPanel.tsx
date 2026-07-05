@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { ejecutarSimulacion } from '@/services/ruteoService';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { ejecutarSimulacion, unirseASimulacion } from '@/services/ruteoService';
+import { API_ENDPOINTS } from '@/config/constants';
 import { RutaResponse, SimulacionJob } from '@/types/rutas';
 import {
   IconChart, IconBolt, IconRefresh, IconBuilding, IconPlane, IconPackage,
@@ -136,6 +137,70 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
   const [progreso,               setProgreso]               = useState<SimulacionJob | null>(null);
   const [cargaDatosAbierta,      setCargaDatosAbierta]      = useState(false);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [activeJobs, setActiveJobs] = useState<Record<number, { jobId: string; fechaInicio?: string; fechaFin?: string }>>({});
+  const [estaUniendose, setEstaUniendose] = useState(false);
+
+  useEffect(() => {
+    const fetchActiveJobs = async () => {
+      try {
+        const res = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}/active`);
+        if (res.ok) {
+          const data = await res.json();
+          // Convert string keys to number keys
+          const parsedData: Record<number, { jobId: string; fechaInicio?: string; fechaFin?: string }> = {};
+          for (const key in data) {
+            parsedData[Number(key)] = {
+              jobId: data[key].jobId,
+              fechaInicio: data[key].fechaInicio,
+              fechaFin: data[key].fechaFin
+            };
+          }
+          setActiveJobs(parsedData);
+        }
+      } catch (err) {
+        console.error("Error fetching active jobs", err);
+      }
+    };
+    fetchActiveJobs();
+    const interval = setInterval(fetchActiveJobs, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleUnirse = async () => {
+    const activeInfo = activeJobs[escenario];
+    if (!activeInfo) return;
+
+    setEstaUniendose(true);
+    setEjecutando(true);
+    onCargando(true);
+    onError('');
+    setProgreso({ jobId: activeInfo.jobId, status: 'PENDING', progress: 0, message: 'Conectando a la simulación...' });
+
+    try {
+      const signal = getAbortSignal?.();
+      const resultado = await unirseASimulacion(
+        activeInfo.jobId,
+        (job) => {
+          setProgreso(job);
+          if (onProgressJob) onProgressJob(job);
+        },
+        signal
+      );
+      onResultado(resultado);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido';
+      if (msg === 'SIMULATION_STOPPED_BY_OWNER') {
+        onSimulationStopped?.('La simulación fue detenida por el propietario.');
+      } else if (msg !== 'Simulación cancelada por el usuario') {
+        onError(msg);
+      }
+    } finally {
+      setEjecutando(false);
+      onCargando(false);
+      setProgreso(null);
+      setEstaUniendose(false);
+    }
+  };
 
   const configArchivos = useMemo(() => {
     if (escenario === 2) {
@@ -203,6 +268,7 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
       onError('Selecciona la fecha y hora de inicio del periodo.');
       return;
     }
+    setEstaUniendose(false);
     setEjecutando(true);
     onCargando(true);
     onError('');
@@ -242,6 +308,24 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
     }
   };
 
+  const formatPeriodLabel = (start?: string, end?: string) => {
+    if (!start || !end) return '';
+    
+    const formatSingle = (dateStr: string) => {
+      if (/^\d{12}$/.test(dateStr)) {
+        const y = dateStr.substring(0, 4);
+        const m = dateStr.substring(4, 6);
+        const d = dateStr.substring(6, 8);
+        const hh = dateStr.substring(8, 10);
+        const mm = dateStr.substring(10, 12);
+        return `${d}/${m}/${y} ${hh}:${mm}`;
+      }
+      return dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    };
+
+    return ` (${formatSingle(start)} a ${formatSingle(end)})`;
+  };
+
   return (
     <div className="space-y-5">
 
@@ -279,163 +363,197 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
         </div>
       </div>
 
-      {/* ── 2. Configuracion contextual ── */}
-      <div className={esSimulacionPeriodo ? 'grid grid-cols-2 gap-4' : 'space-y-3'}>
-
-        {/* Columna izquierda: Archivos */}
-        <div>
+      {activeJobs[escenario] && (!ejecutando || estaUniendose) ? (
+        <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-6 flex flex-col items-center justify-center space-y-4 text-center">
+          <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400">
+            <IconBolt size={24} />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-slate-100">
+              Simulación en curso
+            </h4>
+            <p className="text-xs text-slate-400 mt-1 max-w-xs">
+              Hay una simulación activa para este escenario. Puedes unirte para visualizar el avance del algoritmo en tiempo real.
+            </p>
+          </div>
           <button
-            type="button"
-            onClick={() => setCargaDatosAbierta(open => !open)}
-            className="w-full rounded-lg border border-slate-700/60 bg-slate-800/35 px-3 py-2.5 text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/5"
-            aria-expanded={cargaDatosAbierta}
+            onClick={handleUnirse}
+            disabled={ejecutando}
+            className="w-full max-w-xs py-3.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 cursor-pointer"
           >
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                  <IconFolder size={15} /> Carga de Datos
-                  <span className="text-slate-600 font-normal normal-case tracking-normal text-[10px] ml-1">(opcional)</span>
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  {labelCargaArchivos}
-                </p>
-              </div>
-              <span className={`text-slate-400 transition-transform ${cargaDatosAbierta ? 'rotate-180' : ''}`} aria-hidden>
-                ▾
-              </span>
-            </div>
+            {ejecutando ? (
+              <>
+                <div className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                Unirse a la simulación{escenario === 1 ? formatPeriodLabel(activeJobs[escenario]?.fechaInicio, activeJobs[escenario]?.fechaFin) : ''}
+              </>
+            )}
           </button>
-
-          {cargaDatosAbierta && (
-            <div className="mt-2 space-y-2">
-              {configArchivos.map(cfg => {
-                const state = archivos[cfg.key];
-                const hasFile = state.files.length > 0;
-                return (
-                  <div
-                    key={cfg.key}
-                    onClick={() => fileRefs.current[cfg.key]?.click()}
-                    className={`relative cursor-pointer rounded-lg border-2 border-dashed px-3 py-2.5 transition-all duration-200
-                      ${hasFile
-                        ? 'border-emerald-500/50 bg-emerald-500/5'
-                        : 'border-slate-600/50 bg-slate-800/30 hover:border-blue-500/40 hover:bg-blue-500/5'
-                      }`}
-                  >
-                    <input
-                      ref={el => { fileRefs.current[cfg.key] = el; }}
-                      type="file"
-                      accept={cfg.accept}
-                      onChange={(e) => handleFileChange(cfg.key, e)}
-                      multiple={cfg.key === 'envios'}
-                      {...(cfg.key === 'envios' ? { webkitdirectory: '' } : {})}
-                      className="hidden"
-                    />
-                    <div className="flex items-center gap-2">
-                      <span className="shrink-0">{hasFile ? <IconCheck size={18} className="text-emerald-400" /> : cfg.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium text-slate-200 leading-tight">{cfg.label}</p>
-                        <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
-                          {hasFile ? state.name : cfg.desc}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
+      ) : (
+        <>
+          {/* ── 2. Configuracion contextual ── */}
+          <div className={esSimulacionPeriodo ? 'grid grid-cols-2 gap-4' : 'space-y-3'}>
 
-        {/* Columna derecha: Fechas + Hora + Duración */}
-        {esSimulacionPeriodo && (
-        <div className="flex flex-col gap-2">
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-            <IconCalendar size={15} /> CONFIGURACIÓN
-          </h3>
-
-          {/* 🌟 CONDICIONAL: Botones de Periodo solo en Escenario 1 */}
-          {escenario === 1 && (
-          <div className="grid grid-cols-3 gap-1.5">
-            {MODOS_PERIODO.map(modo => {
-              const isActive = modoPeriodo === modo.id;
-                return (
-                  <button
-                    key={modo.id}
-                    type="button"
-                    onClick={() => setModoPeriodo(modo.id)}
-                    className={`rounded-lg border px-2 py-2 text-[10px] font-semibold transition-all
-                      ${isActive
-                        ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/20'
-                        : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-cyan-500/40 hover:text-slate-200'
-                      }`}
-                  >
-                    {modo.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Fecha + Hora Inicio */}
-          <div className="rounded-lg border border-slate-700/40 bg-slate-800/20 p-2 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] text-slate-500 uppercase tracking-wider">Inicio</label>
+            {/* Columna izquierda: Archivos */}
+            <div>
               <button
                 type="button"
-                onClick={handleHoy}
-                className="text-[10px] text-blue-400/80 hover:text-blue-300 transition-colors px-1.5 py-0.5 rounded border border-blue-500/20 hover:border-blue-400/40"
+                onClick={() => setCargaDatosAbierta(open => !open)}
+                className="w-full rounded-lg border border-slate-700/60 bg-slate-800/35 px-3 py-2.5 text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/5"
+                aria-expanded={cargaDatosAbierta}
               >
-                Hoy
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <IconFolder size={15} /> Carga de Datos
+                      <span className="text-slate-600 font-normal normal-case tracking-normal text-[10px] ml-1">(opcional)</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      {labelCargaArchivos}
+                    </p>
+                  </div>
+                  <span className={`text-slate-400 transition-transform ${cargaDatosAbierta ? 'rotate-180' : ''}`} aria-hidden>
+                    ▾
+                  </span>
+                </div>
               </button>
-            </div>
-            <input
-              type="date"
-              value={fechaInicio}
-              onChange={e => handleFechaInicioChange(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200
-                         focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
-                         [color-scheme:dark] transition-all"
-            />
-            <input
-              type="time"
-              value={horaInicio}
-              onChange={e => handleHoraInicioChange(e.target.value)}
-              className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200
-                         focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
-                         [color-scheme:dark] transition-all"
-            />
-          </div>
-          {escenario === 1 && (
-            <p className={`text-[10px] flex items-center gap-1.5 px-1 ${fechaInicio ? 'text-emerald-400/80' : 'text-amber-400/80'}`}>
-              {fechaInicio ? <IconClock size={14} className="shrink-0" /> : <IconWarning size={14} className="shrink-0" />}
-              <span>{fechaInicio ? `Duración: ${periodoSeleccionado.dias} días` : 'Selecciona inicio para calcular el periodo'}</span>
-            </p>
-          )}
-        </div>
-        )}
-      </div>
 
-      {/* ── 3. Botón Ejecutar ── */}
-      <button
-        onClick={handleEjecutar}
-        disabled={ejecutando || !inicioPeriodoValido}
-        className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2
-          ${!ejecutando && inicioPeriodoValido
-            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30'
-            : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
-          }`}
-      >
-        {ejecutando ? (
-          <>
-            <div className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
-            Ejecutando simulación...
-          </>
-        ) : (
-          <>
-            Iniciar
-          </>
-        )}
-      </button>
+              {cargaDatosAbierta && (
+                <div className="mt-2 space-y-2">
+                  {configArchivos.map(cfg => {
+                    const state = archivos[cfg.key];
+                    const hasFile = state.files.length > 0;
+                    return (
+                      <div
+                        key={cfg.key}
+                        onClick={() => fileRefs.current[cfg.key]?.click()}
+                        className={`relative cursor-pointer rounded-lg border-2 border-dashed px-3 py-2.5 transition-all duration-200
+                          ${hasFile
+                            ? 'border-emerald-500/50 bg-emerald-500/5'
+                            : 'border-slate-600/50 bg-slate-800/30 hover:border-blue-500/40 hover:bg-blue-500/5'
+                          }`}
+                      >
+                        <input
+                          ref={el => { fileRefs.current[cfg.key] = el; }}
+                          type="file"
+                          accept={cfg.accept}
+                          onChange={(e) => handleFileChange(cfg.key, e)}
+                          multiple={cfg.key === 'envios'}
+                          {...(cfg.key === 'envios' ? { webkitdirectory: '' } : {})}
+                          className="hidden"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="shrink-0">{hasFile ? <IconCheck size={18} className="text-emerald-400" /> : cfg.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-slate-200 leading-tight">{cfg.label}</p>
+                            <p className="text-[10px] text-slate-400 truncate leading-tight mt-0.5">
+                              {hasFile ? state.name : cfg.desc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Columna derecha: Fechas + Hora + Duración */}
+            {esSimulacionPeriodo && (
+            <div className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                <IconCalendar size={15} /> CONFIGURACIÓN
+              </h3>
+
+              {/* 🌟 CONDICIONAL: Botones de Periodo solo en Escenario 1 */}
+              {escenario === 1 && (
+              <div className="grid grid-cols-3 gap-1.5">
+                {MODOS_PERIODO.map(modo => {
+                  const isActive = modoPeriodo === modo.id;
+                    return (
+                      <button
+                        key={modo.id}
+                        type="button"
+                        onClick={() => setModoPeriodo(modo.id)}
+                        className={`rounded-lg border px-2 py-2 text-[10px] font-semibold transition-all
+                          ${isActive
+                            ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/20'
+                            : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-cyan-500/40 hover:text-slate-200'
+                          }`}
+                      >
+                        {modo.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Fecha + Hora Inicio */}
+              <div className="rounded-lg border border-slate-700/40 bg-slate-800/20 p-2 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider">Inicio</label>
+                  <button
+                    type="button"
+                    onClick={handleHoy}
+                    className="text-[10px] text-blue-400/80 hover:text-blue-300 transition-colors px-1.5 py-0.5 rounded border border-blue-500/20 hover:border-blue-400/40"
+                  >
+                    Hoy
+                  </button>
+                </div>
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={e => handleFechaInicioChange(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200
+                             focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
+                             [color-scheme:dark] transition-all"
+                />
+                <input
+                  type="time"
+                  value={horaInicio}
+                  onChange={e => handleHoraInicioChange(e.target.value)}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200
+                             focus:outline-none focus:border-blue-500/60 focus:ring-1 focus:ring-blue-500/20
+                             [color-scheme:dark] transition-all"
+                />
+              </div>
+              {escenario === 1 && (
+                <p className={`text-[10px] flex items-center gap-1.5 px-1 ${fechaInicio ? 'text-emerald-400/80' : 'text-amber-400/80'}`}>
+                  {fechaInicio ? <IconClock size={14} className="shrink-0" /> : <IconWarning size={14} className="shrink-0" />}
+                  <span>{fechaInicio ? `Duración: ${periodoSeleccionado.dias} días` : 'Selecciona inicio para calcular el periodo'}</span>
+                </p>
+              )}
+            </div>
+            )}
+          </div>
+
+          {/* ── 3. Botón Ejecutar ── */}
+          <button
+            onClick={handleEjecutar}
+            disabled={ejecutando || !inicioPeriodoValido}
+            className={`w-full py-3.5 rounded-lg font-semibold text-sm transition-all duration-300 flex items-center justify-center gap-2
+              ${!ejecutando && inicioPeriodoValido
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 cursor-pointer'
+                : 'bg-slate-700/50 text-slate-500 cursor-not-allowed'
+              }`}
+          >
+            {ejecutando ? (
+              <>
+                <div className="w-4 h-4 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                Ejecutando simulación...
+              </>
+            ) : (
+              <>
+                Iniciar
+              </>
+            )}
+          </button>
+        </>
+      )}
 
       {progreso && (
         <div className="rounded-lg border border-blue-500/20 bg-blue-500/10 p-3">
