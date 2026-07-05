@@ -51,9 +51,21 @@ public class EnvioDiaADiaController {
         String destinoCodigo = (String) body.get("destinoCodigo");
         int cantidadMaletas = ((Number) body.get("cantidadMaletas")).intValue();
 
-        LocalDateTime fechaCreacionGMT = asyncJobService.getActiveJobCurrentTime();
-        if (fechaCreacionGMT == null) {
-            fechaCreacionGMT = LocalDateTime.now(java.time.ZoneOffset.UTC);
+        LocalDateTime fechaCreacionGMT;
+        if (body.containsKey("fechaCreacionLocal") && body.get("fechaCreacionLocal") != null && !((String) body.get("fechaCreacionLocal")).isEmpty()) {
+            String fechaIso = (String) body.get("fechaCreacionLocal");
+            try {
+                // frontend sends ISO string like "2026-07-04T15:00:00.000Z"
+                fechaCreacionGMT = java.time.Instant.parse(fechaIso).atOffset(java.time.ZoneOffset.UTC).toLocalDateTime();
+            } catch (Exception e) {
+                // fallback
+                fechaCreacionGMT = LocalDateTime.parse(fechaIso); 
+            }
+        } else {
+            fechaCreacionGMT = asyncJobService.getActiveJobCurrentTime();
+            if (fechaCreacionGMT == null) {
+                fechaCreacionGMT = LocalDateTime.now(java.time.ZoneOffset.UTC);
+            }
         }
 
         try {

@@ -21,6 +21,11 @@ import {
 import { AeropuertoDTO } from '@/types/rutas';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import {
+  calcularDistancia,
+  encontrarAeropuertoMasCercano,
+  obtenerUbicacionNavegador
+} from '@/utils/geolocation';
+import {
   IconBuilding, IconPlane, IconSearch, IconPlus, IconEdit, IconTrash, IconClose, IconPackage, IconRefresh
 } from '@/components/icons';
 
@@ -55,6 +60,11 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
   const [envioForm, setEnvioForm] = useState<EnvioDiaADiaCreateDTO | null>(null);
   const [envioFile, setEnvioFile] = useState<File | null>(null);
   const [envioFileName, setEnvioFileName] = useState('');
+  
+  const [isDemo] = useState(() => {
+    return new URLSearchParams(window.location.search).get('demo') === 'true';
+  });
+  const [aeropuertoDetectado, setAeropuertoDetectado] = useState<AeropuertoDTO | null>(null);
 
   const [aeroPage, setAeroPage] = useState(1);
   const [vueloPage, setVueloPage] = useState(1);
@@ -100,10 +110,22 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
   const handleGuardarEnvio = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!envioForm) return;
+
+    let dto = { ...envioForm };
+    if (aeropuertoDetectado && dto.fechaCreacionLocal) {
+       // La fecha está como "YYYY-MM-DDTHH:mm"
+       const absoluteTime = new Date(dto.fechaCreacionLocal + 'Z'); 
+       const offsetMs = aeropuertoDetectado.gmt * 3600000;
+       const utcReal = new Date(absoluteTime.getTime() - offsetMs);
+       
+       dto.fechaCreacionLocal = utcReal.toISOString();
+    }
+
     try {
-      await crearEnvioDiaADia(envioForm);
+      await crearEnvioDiaADia(dto);
       showMessage('Envío manual creado correctamente');
       setEnvioForm(null);
+      setAeropuertoDetectado(null);
       cargarDatos();
     } catch (error: unknown) {
       showMessage(error instanceof Error ? error.message : 'Error', true);
@@ -626,7 +648,7 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
               </div>
               <div className="flex gap-1.5">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setEnvioForm({
                       clienteId: '',
                       origenCodigo: '',
@@ -634,6 +656,27 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
                       fechaCreacionLocal: '',
                       cantidadMaletas: 1,
                     });
+                    try {
+                      const { lat, lon } = await obtenerUbicacionNavegador();
+                      const cercano = encontrarAeropuertoMasCercano(lat, lon, aeropuertos);
+                      
+                      let localTime = '';
+                      if (cercano) {
+                        setAeropuertoDetectado(cercano);
+                        const nowUTC = new Date();
+                        const offsetHoras = cercano.gmt;
+                        const localDate = new Date(nowUTC.getTime() + offsetHoras * 3600000);
+                        localTime = localDate.toISOString().slice(0, 16);
+                      }
+
+                      setEnvioForm(prev => prev ? ({
+                        ...prev,
+                        origenCodigo: cercano ? cercano.codigo : '',
+                        fechaCreacionLocal: localTime,
+                      }) : null);
+                    } catch (err) {
+                      showMessage("No se pudo obtener la ubicación. Por favor, acepta los permisos de ubicación.", true);
+                    }
                   }}
                   className="px-2 py-1.5 rounded-lg text-xs bg-rose-500/10 text-rose-300 border border-rose-500/20 font-semibold hover:bg-rose-500/20 transition-all flex items-center gap-1"
                 >
@@ -690,18 +733,12 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
                       <input required className={inputClass} value={envioForm.clienteId} onChange={e => setEnvioForm({ ...envioForm, clienteId: e.target.value })} placeholder="CLI0001" />
                     </div>
                     <div>
-                      <label className={labelClass}>Origen</label>
-                      <select 
-                        required 
-                        className={inputClass} 
-                        value={envioForm.origenCodigo} 
-                        onChange={e => setEnvioForm({ ...envioForm, origenCodigo: e.target.value })}
-                      >
-                        <option value="">Seleccione...</option>
-                        {aeropuertos.map(a => (
-                          <option key={a.codigo} value={a.codigo}>{a.codigo} - {a.ciudad}</option>
-                        ))}
-                      </select>
+                      <label className={labelClass}>Origen Detectado</label>
+                      <div className={`${inputClass} bg-slate-800/80 text-slate-400 select-none`}>
+                        {envioForm.origenCodigo 
+                          ? `${envioForm.origenCodigo} - ${aeropuertoDetectado?.ciudad || ''}`
+                          : 'Detectando ubicación...'}
+                      </div>
                     </div>
                     <div>
                       <label className={labelClass}>Destino</label>
@@ -717,10 +754,24 @@ export default function AdminPanel({ escenario, onSelectEnvio }: AdminPanelProps
                         ))}
                       </select>
                     </div>
-                    <div className="col-span-2">
+                    <div className={isDemo ? "" : "col-span-2"}>
                       <label className={labelClass}>Cant. Maletas</label>
                       <input required type="number" min="1" className={inputClass} value={envioForm.cantidadMaletas} onChange={e => setEnvioForm({ ...envioForm, cantidadMaletas: parseInt(e.target.value) || 1 })} />
                     </div>
+                    {isDemo && (
+                      <div className="col-span-2">
+                        <label className={labelClass}>
+                          Fecha de Recepción (Hora Local: GMT{aeropuertoDetectado?.gmt !== undefined ? (aeropuertoDetectado.gmt > 0 ? `+${aeropuertoDetectado.gmt}` : aeropuertoDetectado.gmt) : ''})
+                        </label>
+                        <input
+                          type="datetime-local"
+                          required
+                          className={inputClass}
+                          value={envioForm.fechaCreacionLocal}
+                          onChange={e => setEnvioForm({ ...envioForm, fechaCreacionLocal: e.target.value })}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex justify-end gap-2 pt-1">
                     <button type="button" onClick={() => setEnvioForm(null)} className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:bg-slate-700/50">Cancelar</button>
