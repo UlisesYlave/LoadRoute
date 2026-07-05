@@ -78,19 +78,22 @@ export default function SimulacionPanel({
         </div>
       </div>
 
-      <div className="border-t border-slate-700/50" />
-
-      <button
-        onClick={onReiniciar}
-        disabled={!isOwner}
-        title={tooltip}
-        className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border text-sm transition-all
-                   ${isOwner 
-                     ? 'border-slate-600/50 text-slate-200 hover:text-slate-100 hover:bg-slate-700/50 hover:border-slate-500 cursor-pointer' 
-                     : 'border-slate-800 text-slate-500 bg-slate-900/20 cursor-not-allowed opacity-50'}`}
-      >
-        <IconRefresh size={16} /> {buttonText}
-      </button>
+      {escenario !== 2 && (
+        <>
+          <div className="border-t border-slate-700/50" />
+          <button
+            onClick={onReiniciar}
+            disabled={!isOwner}
+            title={tooltip}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border text-sm transition-all
+                       ${isOwner 
+                         ? 'border-slate-600/50 text-slate-200 hover:text-slate-100 hover:bg-slate-700/50 hover:border-slate-500 cursor-pointer' 
+                         : 'border-slate-800 text-slate-500 bg-slate-900/20 cursor-not-allowed opacity-50'}`}
+          >
+            <IconRefresh size={16} /> {buttonText}
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -184,7 +184,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* ── HEADER ── */}
       <header className="bg-[#0f1f3d] border-b border-slate-700/50 px-4 py-0 flex items-center gap-3 shrink-0 h-14">
         {/* Logo */}
-        <img src="/logo.png" alt="LoadRoute Logo" className="h-8 shrink-0" />
+        <button 
+          onClick={handleReiniciar}
+          title="Volver a la pantalla de inicio"
+          className="hover:opacity-80 transition-opacity flex items-center shrink-0 cursor-pointer"
+        >
+          <img src="/logo.png" alt="LoadRoute Logo" className="h-8 shrink-0" />
+        </button>
         <div className="w-px h-6 bg-slate-700/60 shrink-0" />
 
         {/* Bloque de Tiempos dinámicos */}

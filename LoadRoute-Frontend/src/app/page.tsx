@@ -480,7 +480,9 @@ export default function Home() {
       abortControllerRef.current = null;
     }
     if (activeJobIdRef.current) {
-      eliminarSimulacion(activeJobIdRef.current).catch(() => undefined);
+      if (resultado?.escenario !== 2) {
+        eliminarSimulacion(activeJobIdRef.current).catch(() => undefined);
+      }
       activeJobIdRef.current = null;
     }
     setJobOwner(null);
@@ -499,6 +501,11 @@ export default function Home() {
     setCancelacionesBD([]);
     setFiltroSemaforoVuelos('todos');
     setFiltroSemaforoAero('todos');
+  };
+
+  const handleSimulationStopped = (message: string) => {
+    handleReiniciar();
+    setError(message);
   };
 
   const handleTabClick = useCallback((id: TabId) => {
@@ -618,6 +625,7 @@ export default function Home() {
             onCargando={setCargando}
             onFechaInicio={handleFechaInicioPanel}
             onFechaFin={handleFechaFinPanel}
+            onSimulationStopped={handleSimulationStopped}
           />
           {error && (
             <div className="p-3 mt-4 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-xs fade-in-up text-center">

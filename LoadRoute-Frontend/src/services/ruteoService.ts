@@ -162,38 +162,48 @@ async function esperarResultadoSimulacion(
       throw new Error("Simulación cancelada por el usuario");
     }
 
-    const jobStatus = await obtenerEstadoSimulacion(jobId);
+    try {
+      const jobStatus = await obtenerEstadoSimulacion(jobId);
 
-    // Fetch missing chunks if the backend reports there are new ones
-    if (jobStatus.chunkCount && jobStatus.chunkCount > chunksCargados) {
-      try {
-        const jobWithChunks = await obtenerChunksSimulacion(jobId, chunksCargados);
-        if (jobWithChunks.chunks && jobWithChunks.chunks.length > 0) {
-          todosLosChunks.push(...jobWithChunks.chunks);
-          chunksCargados += jobWithChunks.chunks.length;
+      // Fetch missing chunks if the backend reports there are new ones
+      if (jobStatus.chunkCount && jobStatus.chunkCount > chunksCargados) {
+        try {
+          const jobWithChunks = await obtenerChunksSimulacion(jobId, chunksCargados);
+          if (jobWithChunks.chunks && jobWithChunks.chunks.length > 0) {
+            todosLosChunks.push(...jobWithChunks.chunks);
+            chunksCargados += jobWithChunks.chunks.length;
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : '';
+          if (msg.includes("404")) {
+            throw new Error("SIMULATION_STOPPED_BY_OWNER");
+          }
+          console.warn("No se pudieron cargar nuevos chunks progresivos", err);
         }
-      } catch (err) {
-        console.warn("No se pudieron cargar nuevos chunks progresivos", err);
       }
-    }
 
-    // Pass the accumulated chunks back to the progress handler so the map can render them
-    const currentJob: SimulacionJob = {
-      ...jobStatus,
-      chunks: todosLosChunks,
-      chunkCount: chunksCargados
-    };
-    
-    onProgress?.(currentJob);
+      // Pass the accumulated chunks back to the progress handler so the map can render them
+      const currentJob: SimulacionJob = {
+        ...jobStatus,
+        chunks: todosLosChunks,
+        chunkCount: chunksCargados
+      };
+      
+      onProgress?.(currentJob);
 
-    if (jobStatus.status === 'DONE') {
-      await eliminarSimulacion(jobId);
-      return todosLosChunks;
-    }
+      if (jobStatus.status === 'DONE') {
+        return todosLosChunks;
+      }
 
-    if (jobStatus.status === 'ERROR') {
-      await eliminarSimulacion(jobId);
-      throw new Error(jobStatus.error || jobStatus.message || 'La simulacion fallo');
+      if (jobStatus.status === 'ERROR') {
+        throw new Error(jobStatus.error || jobStatus.message || 'La simulacion fallo');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === "SIMULATION_STOPPED_BY_OWNER" || msg.includes("404")) {
+        throw new Error("SIMULATION_STOPPED_BY_OWNER");
+      }
+      throw err;
     }
   }
 }

@@ -18,6 +18,7 @@ interface ControlPanelProps {
   onFechaFin?: (fecha: string) => void;
   onProgressJob?: (job: SimulacionJob) => void;
   getAbortSignal?: () => AbortSignal;
+  onSimulationStopped?: (message: string) => void;
 }
 
 interface FileState {
@@ -122,7 +123,7 @@ const colorMapActive: Record<string, string> = {
   amber: 'border-amber-400 bg-amber-500/20 ring-1 ring-amber-400/30',
 };
 
-export default function ControlPanel({ escenario, setEscenario, onResultado, onError, onCargando, onFechaInicio, onFechaFin, onProgressJob, getAbortSignal }: ControlPanelProps) {
+export default function ControlPanel({ escenario, setEscenario, onResultado, onError, onCargando, onFechaInicio, onFechaFin, onProgressJob, getAbortSignal, onSimulationStopped }: ControlPanelProps) {
   const [archivos, setArchivos] = useState<Record<string, FileState>>({
     aeropuertos: { files: [], name: '' },
     vuelos:      { files: [], name: '' },
@@ -229,7 +230,9 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
       onResultado(resultado);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
-      if (msg !== 'Simulación cancelada por el usuario') {
+      if (msg === 'SIMULATION_STOPPED_BY_OWNER') {
+        onSimulationStopped?.('La simulación fue detenida por el propietario.');
+      } else if (msg !== 'Simulación cancelada por el usuario') {
         onError(msg);
       }
     } finally {

@@ -37,6 +37,7 @@ public class RuteoAsyncJobService {
     private final Map<String, java.util.concurrent.ScheduledFuture<?>> simTasks = new ConcurrentHashMap<>();
     private final Map<String, SimulacionJobDTO> jobs = new ConcurrentHashMap<>();
     private final Map<String, Long> finishedAt = new ConcurrentHashMap<>();
+    private final Map<String, Long> lastPolledAt = new ConcurrentHashMap<>();
     private final Map<String, RuteoAlgoritmoService.SimulacionIterator> activeIterators = new ConcurrentHashMap<>();
     private final SimpMessagingTemplate messagingTemplate;
     private final com.loadroute.repository.VueloCanceladoPeriodoRepository vueloCanceladoPeriodoRepository;
@@ -46,7 +47,7 @@ public class RuteoAsyncJobService {
         this.ruteoService = ruteoService;
         this.messagingTemplate = messagingTemplate;
         this.vueloCanceladoPeriodoRepository = vueloCanceladoPeriodoRepository;
-        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredJobs, 5, 5, TimeUnit.MINUTES);
+        cleanupExecutor.scheduleAtFixedRate(this::cleanupExpiredJobs, 5, 5, TimeUnit.SECONDS);
     }
 
     private String activeDiaADiaJobId;
@@ -111,6 +112,7 @@ public class RuteoAsyncJobService {
         SimulacionJobDTO job = new SimulacionJobDTO(jobId, "PENDING", 0, "Iniciando simulacion...");
         job.setOwner(sessionId);
         jobs.put(jobId, job);
+        lastPolledAt.put(jobId, System.currentTimeMillis());
 
         executor.submit(() -> {
             update(jobId, "RUNNING", 5, "Cargando datos e preparando simulacion periodica...");
@@ -193,12 +195,18 @@ public class RuteoAsyncJobService {
     public SimulacionJobDTO obtenerEstado(String jobId) {
         cleanupExpiredJobs();
         SimulacionJobDTO job = jobs.get(jobId);
+        if (job != null) {
+            lastPolledAt.put(jobId, System.currentTimeMillis());
+        }
         return job != null ? job.copyStatus() : null;
     }
 
     public SimulacionJobDTO obtenerChunks(String jobId, int desde) {
         cleanupExpiredJobs();
         SimulacionJobDTO job = jobs.get(jobId);
+        if (job != null) {
+            lastPolledAt.put(jobId, System.currentTimeMillis());
+        }
         return job != null ? job.copyChunks(desde) : null;
     }
 
@@ -219,6 +227,7 @@ public class RuteoAsyncJobService {
             activePeriodoOwner = null;
         }
         finishedAt.remove(jobId);
+        lastPolledAt.remove(jobId);
         cancelarTarea(jobId);
         return jobs.remove(jobId) != null;
     }
@@ -241,6 +250,36 @@ public class RuteoAsyncJobService {
 
     private void cleanupExpiredJobs() {
         long now = System.currentTimeMillis();
+        
+        // 1. Limpieza de trabajos activos por inactividad (sin solicitudes en los últimos 20 segundos)
+        for (String jobId : new java.util.HashSet<>(jobs.keySet())) {
+            SimulacionJobDTO job = jobs.get(jobId);
+            if (job == null) continue;
+            
+            String status = job.getStatus();
+            if ("RUNNING".equals(status) || "PENDING".equals(status)) {
+                Long lastPolled = lastPolledAt.get(jobId);
+                if (lastPolled != null && (now - lastPolled > 20000)) {
+                    jobs.remove(jobId);
+                    if (jobId.equals(activeDiaADiaJobId)) {
+                        activeDiaADiaJobId = null;
+                        activeDiaADiaOwner = null;
+                        System.out.println("La simulación Día a Día [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
+                    } else if (jobId.equals(activePeriodoJobId)) {
+                        activePeriodoJobId = null;
+                        activePeriodoOwner = null;
+                        System.out.println("La simulación de Periodo [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
+                    } else {
+                        System.out.println("La simulación [" + jobId + "] se detuvo debido a inactividad (sin usuarios conectados).");
+                    }
+                    lastPolledAt.remove(jobId);
+                    finishedAt.remove(jobId);
+                    cancelarTarea(jobId);
+                }
+            }
+        }
+        
+        // 2. Limpieza estándar por TTL para completados/errores
         for (Map.Entry<String, Long> entry : finishedAt.entrySet()) {
             SimulacionJobDTO job = jobs.get(entry.getKey());
             if (job == null) {
@@ -253,6 +292,7 @@ public class RuteoAsyncJobService {
                 jobs.remove(entry.getKey());
                 cancelarTarea(entry.getKey());
                 finishedAt.remove(entry.getKey());
+                lastPolledAt.remove(entry.getKey());
             }
         }
     }
