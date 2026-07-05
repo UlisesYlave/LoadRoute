@@ -104,7 +104,7 @@ public class RuteoAlgoritmoService {
         }
 
         if (escenario == 3) {
-            return new ParametrosSimulacion(1, 200);
+            return new ParametrosSimulacion(1, 140);
         }
 
         if (escenario == 1) {
@@ -570,7 +570,7 @@ public class RuteoAlgoritmoService {
 
             List<Integer> currentCancelledIds = new ArrayList<>();
             Set<String> futureCancelledVuelosKeys = new HashSet<>();
-            
+
             if (baseResponse.getEscenario() == 1) {
                 List<VueloCanceladoPeriodoEntity> dbCancellations = vueloCanceladoPeriodoRepository.findAll();
                 for (VueloCanceladoPeriodoEntity c : dbCancellations) {
