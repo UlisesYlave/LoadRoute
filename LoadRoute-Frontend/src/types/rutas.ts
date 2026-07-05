@@ -73,6 +73,8 @@ export interface RutaResponse {
   // Custom frontend arrays mapped from chunks
   cancelacionesPorDiaSA?: number[][];
   chunksCount?: number;
+  ultimoLoteInicio?: string;
+  ultimoLoteFin?: string;
 }
 
 export interface FiltrosAvionesMapa {

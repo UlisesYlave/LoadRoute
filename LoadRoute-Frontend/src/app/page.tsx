@@ -146,6 +146,12 @@ function combineChunks(chunks: RutaResponse[] | undefined): RutaResponse | null 
     base.resultadoSA.rutasMuestra = Array.from(rutasMap.values());
   }
 
+  if (chunks.length > 0) {
+    const lastChunk = chunks[chunks.length - 1];
+    base.ultimoLoteInicio = lastChunk.loteInicio;
+    base.ultimoLoteFin = lastChunk.loteFin;
+  }
+
   return base;
 }
 

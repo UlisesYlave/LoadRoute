@@ -110,8 +110,9 @@ export function useSimulationTimer({ resultado, fechaInicioRaw, fechaFinRaw }: U
     }
 
     let targetMinutos = 0;
-    const timeStr = (!hasAlignedRef.current && resultado.chunksCount && resultado.chunksCount > 1)
-      ? resultado.loteFin
+    const isJoiningActive = !hasAlignedRef.current && resultado.chunksCount && resultado.chunksCount > 1;
+    const timeStr = isJoiningActive
+      ? (resultado.ultimoLoteInicio || resultado.loteFin)
       : resultado.loteInicio;
 
     if (resultado.escenario === 1) {
@@ -141,8 +142,8 @@ export function useSimulationTimer({ resultado, fechaInicioRaw, fechaFinRaw }: U
       }
     }
 
-    // Atrasar un chunk visualmente para ver la animación del progreso reciente al unirse a una simulación activa
-    if (!hasAlignedRef.current && resultado.chunksCount && resultado.chunksCount > 1) {
+    // Atrasar un chunk visualmente si tuvimos que usar loteFin en lugar de ultimoLoteInicio al unirse a una simulación activa
+    if (isJoiningActive && !resultado.ultimoLoteInicio) {
       const inicioAbsoluto = resultado.escenario === 1 ? getInicioOffsetMinutos(fechaInicioRaw) : 0;
       targetMinutos = Math.max(inicioAbsoluto, targetMinutos - (resultado.sa || 0));
     }
