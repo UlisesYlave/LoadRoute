@@ -9,6 +9,8 @@ interface SimulacionPanelProps {
   onReiniciar: () => void;
   escenario: number;
   diasSimulados: number;
+  realElapsedMs: number;
+  isOwner?: boolean;
 }
 
 export default function SimulacionPanel({
@@ -16,8 +18,19 @@ export default function SimulacionPanel({
   umbralAmbar,
   onUmbralVerde,
   onUmbralAmbar,
-  onReiniciar
+  onReiniciar,
+  escenario,
+  realElapsedMs,
+  isOwner = true
 }: SimulacionPanelProps) {
+  const buttonText = escenario === 2 
+    ? 'Detener escenario de operaciones día a día' 
+    : 'Cargar nuevos datos';
+
+  const tooltip = isOwner 
+    ? "" 
+    : "No eres el creador de esta simulación, no puedes detenerla.";
+
   return (
     <div className="flex flex-col h-full p-4 space-y-5 overflow-y-auto custom-scrollbar">
       {/* Umbral de Capacidad */}
@@ -69,10 +82,14 @@ export default function SimulacionPanel({
 
       <button
         onClick={onReiniciar}
-        className="w-full flex items-center justify-center gap-2 py-3 rounded-lg border border-slate-600/50
-                   text-sm text-slate-200 hover:text-slate-100 hover:bg-slate-700/50 hover:border-slate-500 transition-all"
+        disabled={!isOwner}
+        title={tooltip}
+        className={`w-full flex items-center justify-center gap-2 py-3 rounded-lg border text-sm transition-all
+                   ${isOwner 
+                     ? 'border-slate-600/50 text-slate-200 hover:text-slate-100 hover:bg-slate-700/50 hover:border-slate-500 cursor-pointer' 
+                     : 'border-slate-800 text-slate-500 bg-slate-900/20 cursor-not-allowed opacity-50'}`}
       >
-        <IconRefresh size={16} /> Cargar nuevos datos
+        <IconRefresh size={16} /> {buttonText}
       </button>
     </div>
   );

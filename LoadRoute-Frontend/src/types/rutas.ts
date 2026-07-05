@@ -92,6 +92,7 @@ export interface SimulacionJob {
   chunkCount?: number;
   chunkStart?: number;
   error?: string;
+  owner?: string;
 }
 
 export type AlgoritmoSeleccion = 'sa';

@@ -98,10 +98,19 @@ public class RutasController {
     }
 
     @DeleteMapping("/simular-async/{jobId}")
-    public ResponseEntity<Void> eliminarSimulacion(@PathVariable String jobId) {
-        return asyncJobService.eliminar(jobId)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+    public ResponseEntity<Void> eliminarSimulacion(
+            @PathVariable String jobId,
+            @RequestHeader(value = "X-Session-ID", required = false) String sessionId
+    ) {
+        SimulacionJobDTO job = asyncJobService.obtenerEstado(jobId);
+        if (job == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (job.getOwner() != null && !job.getOwner().equals(sessionId)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FORBIDDEN).build();
+        }
+        asyncJobService.eliminar(jobId, sessionId);
+        return ResponseEntity.noContent().build();
     }
 
     // ── Métodos Auxiliares para el procesamiento de archivos ──────────────────

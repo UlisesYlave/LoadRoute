@@ -17,12 +17,14 @@ interface ControlPanelProps {
   onFechaInicio?: (fecha: string) => void;
   onFechaFin?: (fecha: string) => void;
   onProgressJob?: (job: SimulacionJob) => void;
+  getAbortSignal?: () => AbortSignal;
 }
 
 interface FileState {
   files: File[];
   name: string;
 }
+
 
 const ESCENARIOS = [
   {
@@ -120,7 +122,7 @@ const colorMapActive: Record<string, string> = {
   amber: 'border-amber-400 bg-amber-500/20 ring-1 ring-amber-400/30',
 };
 
-export default function ControlPanel({ escenario, setEscenario, onResultado, onError, onCargando, onFechaInicio, onFechaFin, onProgressJob }: ControlPanelProps) {
+export default function ControlPanel({ escenario, setEscenario, onResultado, onError, onCargando, onFechaInicio, onFechaFin, onProgressJob, getAbortSignal }: ControlPanelProps) {
   const [archivos, setArchivos] = useState<Record<string, FileState>>({
     aeropuertos: { files: [], name: '' },
     vuelos:      { files: [], name: '' },
@@ -207,6 +209,7 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
     onFechaFin?.(esSimulacionPeriodo ? (fechaFinBackend || '') : '');
     setProgreso({ jobId: '', status: 'PENDING', progress: 0, message: 'Preparando simulacion...' });
     try {
+      const signal = getAbortSignal?.();
       const resultado = await ejecutarSimulacion(
         archivos.aeropuertos.files[0],
         archivos.vuelos.files[0],
@@ -220,12 +223,15 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
         (job) => {
           setProgreso(job);
           if (onProgressJob) onProgressJob(job);
-        }
+        },
+        signal
       );
       onResultado(resultado);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Error desconocido';
-      onError(msg);
+      if (msg !== 'Simulación cancelada por el usuario') {
+        onError(msg);
+      }
     } finally {
       setEjecutando(false);
       onCargando(false);

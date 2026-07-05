@@ -67,6 +67,7 @@ interface DashboardViewProps {
   rutasActivas: any[];
   diasSimulados: number;
   maxSimDia: number | null;
+  jobOwner?: string | null;
 
   setIsPlaying: (play: boolean) => void;
   handleStop: () => void;
@@ -127,6 +128,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   rutasActivas,
   diasSimulados,
   maxSimDia,
+  jobOwner,
   setIsPlaying,
   handleStop,
   handleTabClick,
@@ -407,6 +409,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onReiniciar={handleReiniciar}
                     escenario={resultado.escenario}
                     diasSimulados={diasSimulados}
+                    realElapsedMs={realElapsedMs}
+                    isOwner={typeof window !== 'undefined' ? (jobOwner === localStorage.getItem('sessionId')) : true}
                   />
                 )}
                 {activeTab === 'pantalla' && (

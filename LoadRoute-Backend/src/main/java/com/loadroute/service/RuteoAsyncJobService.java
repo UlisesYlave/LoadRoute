@@ -109,6 +109,7 @@ public class RuteoAsyncJobService {
             activePeriodoOwner = sessionId;
         }
         SimulacionJobDTO job = new SimulacionJobDTO(jobId, "PENDING", 0, "Iniciando simulacion...");
+        job.setOwner(sessionId);
         jobs.put(jobId, job);
 
         executor.submit(() -> {
@@ -201,9 +202,21 @@ public class RuteoAsyncJobService {
         return job != null ? job.copyChunks(desde) : null;
     }
 
-    public boolean eliminar(String jobId) {
+    public boolean eliminar(String jobId, String sessionId) {
+        SimulacionJobDTO job = jobs.get(jobId);
+        if (job != null) {
+            String owner = job.getOwner();
+            if (owner != null && !owner.equals(sessionId)) {
+                return false;
+            }
+        }
         if (jobId.equals(activeDiaADiaJobId)) {
             activeDiaADiaJobId = null;
+            activeDiaADiaOwner = null;
+        }
+        if (jobId.equals(activePeriodoJobId)) {
+            activePeriodoJobId = null;
+            activePeriodoOwner = null;
         }
         finishedAt.remove(jobId);
         cancelarTarea(jobId);

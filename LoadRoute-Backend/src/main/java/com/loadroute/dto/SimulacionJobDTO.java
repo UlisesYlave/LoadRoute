@@ -32,6 +32,9 @@ public class SimulacionJobDTO {
     @JsonProperty("error")
     private String error;
 
+    @JsonProperty("owner")
+    private String owner;
+
     public SimulacionJobDTO() {}
 
     public SimulacionJobDTO(String jobId, String status, int progress, String message) {
@@ -53,6 +56,9 @@ public class SimulacionJobDTO {
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 
+    public String getOwner() { return owner; }
+    public void setOwner(String owner) { this.owner = owner; }
+
     public synchronized List<RutaResponseDTO> getChunks() { return chunks; }
     public synchronized void setChunks(List<RutaResponseDTO> chunks) { this.chunks = chunks; }
     public synchronized void addChunk(RutaResponseDTO chunk) { this.chunks.add(chunk); }
@@ -72,6 +78,7 @@ public class SimulacionJobDTO {
         dto.setChunks(null);
         dto.setChunkCount(chunks != null ? chunks.size() : 0);
         dto.setChunkStart(null);
+        dto.setOwner(owner);
         return dto;
     }
 
@@ -82,6 +89,7 @@ public class SimulacionJobDTO {
         dto.setError(error);
         dto.setChunkCount(total);
         dto.setChunkStart(inicio);
+        dto.setOwner(owner);
         dto.setChunks(new ArrayList<>(chunks.subList(inicio, total)));
         return dto;
     }

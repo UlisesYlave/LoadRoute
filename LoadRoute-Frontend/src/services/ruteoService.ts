@@ -36,7 +36,8 @@ export async function ejecutarSimulacion(
   algoritmos: AlgoritmoSeleccion = 'sa',
   sa?: number,
   k?: number,
-  onProgress?: (job: SimulacionJob) => void
+  onProgress?: (job: SimulacionJob) => void,
+  signal?: AbortSignal
 ): Promise<RutaResponse[]> {
   const started = await iniciarSimulacion(
     aeropuertosFile,
@@ -51,7 +52,7 @@ export async function ejecutarSimulacion(
   );
   onProgress?.(started);
 
-  return esperarResultadoSimulacion(started.jobId, onProgress);
+  return esperarResultadoSimulacion(started.jobId, onProgress, signal);
 }
 
 export async function iniciarSimulacion(
@@ -122,18 +123,45 @@ export async function obtenerChunksSimulacion(jobId: string, desde = 0): Promise
 }
 
 export async function eliminarSimulacion(jobId: string): Promise<void> {
-  await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}/${jobId}`, { method: 'DELETE' }).catch(() => undefined);
+  const response = await fetch(`${API_ENDPOINTS.SIMULAR_ASYNC}/${jobId}`, {
+    method: 'DELETE',
+    headers: {
+      'X-Session-ID': getSessionId()
+    }
+  });
+  if (response.status === 403) {
+    throw new Error("No tienes permisos para detener esta simulación.");
+  }
 }
 
 async function esperarResultadoSimulacion(
   jobId: string,
-  onProgress?: (job: SimulacionJob) => void
+  onProgress?: (job: SimulacionJob) => void,
+  signal?: AbortSignal
 ): Promise<RutaResponse[]> {
   let chunksCargados = 0;
   const todosLosChunks: RutaResponse[] = [];
 
   while (true) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    if (signal?.aborted) {
+      throw new Error("Simulación cancelada por el usuario");
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(resolve, 1000);
+      
+      const onAbort = () => {
+        clearTimeout(timeout);
+        reject(new Error("Simulación cancelada por el usuario"));
+      };
+      
+      signal?.addEventListener('abort', onAbort);
+    });
+
+    if (signal?.aborted) {
+      throw new Error("Simulación cancelada por el usuario");
+    }
+
     const jobStatus = await obtenerEstadoSimulacion(jobId);
 
     // Fetch missing chunks if the backend reports there are new ones

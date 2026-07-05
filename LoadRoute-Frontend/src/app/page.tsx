@@ -176,6 +176,15 @@ export default function Home() {
   const fechaFinUsuarioRef = useRef('');
   const isFirstChunkRef = useRef(true);
   const activeJobIdRef = useRef<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [jobOwner, setJobOwner] = useState<string | null>(null);
+
+  const getAbortSignal = () => {
+    if (!abortControllerRef.current) {
+      abortControllerRef.current = new AbortController();
+    }
+    return abortControllerRef.current.signal;
+  };
 
   // 4. Umbrales de capacidad (Se quedan en la página porque los controla el Sidebar)
   const [umbralVerde, setUmbralVerde] = useState(30);
@@ -466,10 +475,15 @@ export default function Home() {
 
   // Acciones adaptadas usando los métodos del Custom Hook
   const handleReiniciar = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
     if (activeJobIdRef.current) {
       eliminarSimulacion(activeJobIdRef.current).catch(() => undefined);
       activeJobIdRef.current = null;
     }
+    setJobOwner(null);
     setResultado(null);
     resetTimerCompletamente(0); // <-- Limpia el estado del tiempo del hook
     setFechaInicioRaw('');
@@ -565,6 +579,7 @@ export default function Home() {
           <ControlPanel
             escenario={escenario}
             setEscenario={setEscenario}
+            getAbortSignal={getAbortSignal}
             onResultado={(resChunks) => {
               const res = combineChunks(resChunks);
               if (res) {
@@ -582,6 +597,7 @@ export default function Home() {
             }}
             onProgressJob={(job) => {
               activeJobIdRef.current = job.jobId;
+              setJobOwner(job.owner || null);
               const res = combineChunks(job.chunks);
               if (res) {
                 if (isFirstChunkRef.current) {
@@ -658,6 +674,7 @@ export default function Home() {
       rutasActivas={rutasActivas}
       diasSimulados={diasSimulados}
       maxSimDia={maxSimDia}
+      jobOwner={jobOwner}
       
       // Filtros semáforo
       filtroSemaforoVuelos={filtroSemaforoVuelos}
