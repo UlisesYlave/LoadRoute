@@ -1,6 +1,6 @@
 import { AeropuertoDTO, RutaMuestra } from '@/types/rutas';
 import { calcularCargaAeropuertoActual, porcentajeOcupacion, formatPorcentaje, obtenerEnviosEnAeropuertoActual } from '@/utils/capacidad';
-import { IconBuilding, IconClose } from '@/components/icons';
+import { IconBuilding, IconClose, IconMap } from '@/components/icons';
 
 interface ModalAeropuertoProps {
   aeropuerto: AeropuertoDTO | null;
@@ -9,6 +9,7 @@ interface ModalAeropuertoProps {
   cargasAeropuertoOverride?: Record<string, number> | null;
   onClose: () => void;
   onSelectEnvio?: (e: RutaMuestra) => void;
+  onEnfocarEnMapa?: () => void; // 🌟 NUEVA PROP ASIGNADA
 }
 
 export default function ModalAeropuerto({
@@ -18,6 +19,7 @@ export default function ModalAeropuerto({
   cargasAeropuertoOverride,
   onClose,
   onSelectEnvio,
+  onEnfocarEnMapa, // 🌟 RECIBIMOS LA PROP
 }: ModalAeropuertoProps) {
   if (!aeropuerto) return null;
 
@@ -47,6 +49,8 @@ export default function ModalAeropuerto({
 
   return (
     <div className="fixed left-16 top-16 z-[10000] w-[340px] max-w-[calc(100vw-5rem)] max-h-[calc(100vh-5rem)] flex flex-col bg-[#0f1f3d]/95 border border-slate-700 rounded-lg shadow-2xl animate-in fade-in slide-in-from-left-2 duration-200">
+      
+      {/* Header */}
       <div className="px-3 py-2.5 border-b border-slate-700/50 flex items-center justify-between bg-black/15 rounded-t-lg shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
@@ -59,15 +63,33 @@ export default function ModalAeropuerto({
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
-          aria-label="Cerrar modal de aeropuerto"
-        >
-          <IconClose size={16} />
-        </button>
+
+        {/* ── BOTONES DE ACCIÓN (ENFOQUE Y CERRAR) ── */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {onEnfocarEnMapa && (
+            <button
+              onClick={(e) => {
+              e.stopPropagation(); // Previene problemas si agregas arrastre (draggable) en el futuro
+              onEnfocarEnMapa();
+            }}
+              className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition-colors shrink-0"
+              title="Enfocar en mapa"
+              aria-label="Enfocar aeropuerto en mapa"
+            >
+              <IconMap size={16} />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+            aria-label="Cerrar modal de aeropuerto"
+          >
+            <IconClose size={16} />
+          </button>
+        </div>
       </div>
 
+      {/* Body */}
       <div className="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-md p-2.5">
           <div className="flex justify-between items-end gap-3 mb-1.5">

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ControlPanel from '@/components/ControlPanel';
 import AdminPanel from '@/components/AdminPanel';
-import { ColapsoDatos } from '@/components/ModalColapso';
+import { ColapsoDatos } from '@/components/Modals/ModalColapso';
 import { RutaResponse, RutaMuestra, AeropuertoDTO, TramoDTO, FiltrosAvionesMapa } from '@/types/rutas';
 import { verificarSaludBackend, cancelarVuelo as cancelarVueloApi, reactivarVuelo as reactivarVueloApi, obtenerVuelosCancelados, eliminarSimulacion, getSessionId } from '@/services/ruteoService';
 import { calcularUltimasCargasAeropuertos, calcularCargaAeropuertoActual } from '@/utils/capacidad';
@@ -67,19 +67,6 @@ function getDayOffset(fechaInicioRaw: string, fechaStr: string): number {
   
   const diffTime = Math.abs(current.getTime() - start.getTime());
   return Math.round(diffTime / (1000 * 60 * 60 * 24));
-}
-
-// ── Helper: fecha de simulación ──
-function formatFechaSimulacion(fechaInicioRaw: string, simDia: number): string {
-  if (!fechaInicioRaw || fechaInicioRaw.length < 8) return `Día ${simDia + 1}`;
-  const y = parseInt(fechaInicioRaw.slice(0, 4));
-  const m = parseInt(fechaInicioRaw.slice(4, 6)) - 1;
-  const d = parseInt(fechaInicioRaw.slice(6, 8));
-  const base = new Date(y, m, d);
-  base.setDate(base.getDate() + simDia);
-  return base.toLocaleDateString('es-PE', {
-    weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
-  });
 }
 
 function aplicarFechasSimulacion(
@@ -535,6 +522,7 @@ export default function Home() {
     setAeroModal(null);
     setEnvioModal(null);
     setVueloModal(vuelo);
+    
   }, []);
 
   const handleSelectAeropuerto = useCallback((aeropuerto: AeropuertoDTO) => {
@@ -642,12 +630,6 @@ export default function Home() {
               {error}
             </div>
           )}
-          {cargando && (
-            <div className="flex justify-center items-center gap-2 p-3 mt-4 text-blue-400 text-sm animate-pulse">
-              <div className="w-4 h-4 border-2 border-transparent border-t-current rounded-full animate-spin" />
-              Procesando algoritmos en servidor...
-            </div>
-          )}
 
           <div className="mt-6 pt-4 border-t border-slate-800/60 flex justify-center">
             <button
@@ -725,7 +707,6 @@ export default function Home() {
       setFiltrosAvionesMapa={setFiltrosAvionesMapa}
       
       // Formateadores
-      formatFechaSimulacion={formatFechaSimulacion}
       formatoHora={formatoHora}
       formatTiempoTranscurrido={formatTiempoTranscurrido}
       formatTiempoReal={formatTiempoReal}

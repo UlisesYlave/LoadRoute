@@ -1,5 +1,5 @@
 import { RutaMuestra } from '@/types/rutas';
-import { IconClose, IconPackage } from '@/components/icons';
+import { IconClose, IconPackage, IconMap } from '@/components/icons'; // 👈 Se agregó IconMap
 import { useDraggable } from '@/hooks/useDraggable';
 
 interface ModalEnvioProps {
@@ -7,6 +7,7 @@ interface ModalEnvioProps {
   onClose: () => void;
   offsetRight?: boolean;
   fechaInicioRaw?: string;
+  onEnfocarPedido: (pedido: any) => void; // 👈 Prop agregada
 }
 
 function formatGmtMinute(minutos?: number): string {
@@ -30,7 +31,7 @@ function getFechaLocalDate(fechaInicioRaw: string, diaOffset: number): string {
   return `${year}-${month}-${day}`;
 }
 
-export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw }: ModalEnvioProps) {
+export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw, onEnfocarPedido }: ModalEnvioProps) {
   const initialX = offsetRight ? 380 : 64;
   const initialY = 64;
   const { position, onMouseDown } = useDraggable(initialX, initialY, !!envio);
@@ -51,19 +52,33 @@ export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw
             <IconPackage size={16} className="text-blue-300" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-base font-bold text-white leading-tight truncate">Envio</h3>
+            <h3 className="text-base font-bold text-white leading-tight truncate">Envío</h3>
             <p className="text-[11px] font-mono font-semibold text-blue-300 tracking-wide truncate">
               {envio.envioId}
             </p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
-          aria-label="Cerrar modal de envio"
-        >
-          <IconClose size={16} />
-        </button>
+        
+        {/* Contenedor de botones de acción */}
+        <div className="flex items-center gap-1.5">
+          {/* 👇 Botón para enfocar pedido agregado */}
+          <button
+            onClick={() => onEnfocarPedido(envio)}
+            className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-cyan-400 hover:text-cyan-300 transition-colors shrink-0"
+            title="Enfocar en mapa"
+            aria-label="Enfocar envío en mapa"
+          >
+            <IconMap size={16} />
+          </button>
+          
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full hover:bg-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+            aria-label="Cerrar modal de envio"
+          >
+            <IconClose size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="p-3 space-y-3 overflow-y-auto custom-scrollbar flex-1 min-h-0">

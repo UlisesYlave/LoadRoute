@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -15,6 +15,7 @@ import { RutaResponse, AeropuertoDTO, FiltrosAvionesMapa, RutaMuestra, TramoDTO 
 import { IconMap } from '@/components/icons';
 import 'leaflet/dist/leaflet.css';
 import { EnfocarAvion } from './EnfocarAvion';
+import { EnfocarAeropuerto } from './EnfocarAeropuerto';
 
 type ModoMapa = 'sa';
 type IndiceCargaAeropuerto = {
@@ -32,6 +33,8 @@ interface MapaRutasProps {
   onSelectVuelo: (vuelo: any) => void;
   onSelectAeropuerto: (aeropuerto: AeropuertoDTO) => void;
   selectedVuelo?: any | null;  // tramo seleccionado — dibuja solo su polilínea
+  vueloAEnfocar?: any | null;
+  aeropuertoAEnfocar?: any | null;
   umbralVerde: number;
   umbralAmbar: number;
   modoMapa: ModoMapa;
@@ -45,6 +48,15 @@ interface MapaRutasProps {
 // Color fijo para aeropuertos: azul del header en operación normal, rojo en colapso
 const AIRPORT_BLUE = '#3b82f6';
 const AIRPORT_COLLAPSE_RED = '#ef4444';
+const DEFAULT_MAX_ZOOM = 12;
+const MIN_MAX_ZOOM = 8;
+const MAX_MAX_ZOOM = 15;
+
+function getMaxZoomForPageWidth(width: number): number {
+  if (!Number.isFinite(width) || width <= 0) return DEFAULT_MAX_ZOOM;
+  const computedZoom = Math.round(Math.log2(width / 320) + 10);
+  return Math.min(MAX_MAX_ZOOM, Math.max(MIN_MAX_ZOOM, computedZoom));
+}
 
 // ── CONSTANTES MATEMÁTICAS PARA CURVAS ──
 const TO_RAD = Math.PI / 180;
@@ -57,7 +69,10 @@ function isAirportCollapsed(cargaActual: number, capacidadMax: number): boolean 
 }
 
 // Semáforo dinámico de Aviones
+// Semáforo dinámico de Aviones
 function getPlaneColor(cargaActual: number, capacidadMax: number, umbralVerde: number, umbralAmbar: number): string {
+  if (cargaActual === 0) return '#6b7080'; // Gris para aviones vacíos (sin carga)
+  
   const p = (cargaActual / Math.max(capacidadMax, 1)) * 100;
   if (p <= umbralVerde) return '#10b981';
   if (p <= umbralAmbar) return '#f59e0b';
@@ -65,7 +80,7 @@ function getPlaneColor(cargaActual: number, capacidadMax: number, umbralVerde: n
 }
 
 // Componente para ajustar el mapa a los bounds
-const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[] }> = ({ aeropuertos }) => {
+const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[]; maxZoom: number }> = ({ aeropuertos, maxZoom }) => {
   const map = useMap();
 
   useEffect(() => {
@@ -74,8 +89,8 @@ const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[] }> = ({ aeropuertos
     const bounds = L.latLngBounds(
       aeropuertos.map(a => [a.latitud, a.longitud] as [number, number])
     );
-    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 5 });
-  }, [aeropuertos, map]);
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: Math.min(maxZoom, 5) });
+  }, [aeropuertos, map, maxZoom]);
 
   return null;
 };
@@ -119,14 +134,13 @@ function crearIconoAvion(color: string, angle: number): L.DivIcon {
 
   return L.divIcon({
     className: 'loadroute-plane-marker',
-    // El div exterior ocupa los 40x40 invisibles para el clic. El div interior dibuja el avión de 20x20.
     html: `
       <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
         <div style="width: 20px; height: 20px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)); transform: rotate(${angle}deg); transform-origin: center; will-change: transform; background: url('data:image/svg+xml,${svg}') center/contain no-repeat;"></div>
       </div>
     `,
-    iconSize: [40, 40],   // <-- Área de clic GIGANTE (fácil de atinar)
-    iconAnchor: [20, 20], // <-- La mitad de 40, para que siga milimétricamente anclado a la ruta
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
   });
 }
 
@@ -137,22 +151,21 @@ function crearIconoAeropuerto(
   umbralAmbar: number,
   collapsed: boolean
 ): L.DivIcon {
-  let color = '#065f46'; // Verde oscuro por defecto
+  let color = '#065f46';
   if (capacidadMax > 0) {
     const p = (cargaActual / capacidadMax) * 100;
     if (p <= umbralVerde) {
-      color = '#065f46'; // Verde oscuro
+      color = '#065f46';
     } else if (p <= umbralAmbar) {
-      color = '#b45309'; // Ámbar oscuro
+      color = '#b45309';
     } else {
-      color = '#991b1b'; // Rojo oscuro
+      color = '#991b1b';
     }
   }
   if (collapsed) {
-    color = '#991b1b'; // Forzar rojo oscuro si está colapsado
+    color = '#991b1b';
   }
   
-  // viewBox ajustado a 64x64 para que el centro del círculo (cx=32, cy=32) sea el centro real del lienzo
   const svg = encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
       <circle cx="32" cy="32" r="28" fill="${color}" stroke="white" stroke-width="4" />
@@ -165,8 +178,8 @@ function crearIconoAeropuerto(
   return L.divIcon({
     className: `loadroute-airport-marker${extraClass}`,
     html: `<div style="width:100%;height:100%;background:url('data:image/svg+xml,${svg}') center/contain no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 5000;"></div>`,
-    iconSize: [24, 24], // Se mantiene el mismo tamaño
-    iconAnchor: [12, 12] // Anclaje en el centro absoluto
+    iconSize: [24, 24],
+    iconAnchor: [12, 12]
   });
 }
 
@@ -185,17 +198,42 @@ const AirportMarker: React.FC<{
 }) {
   const collapsed = isAirportCollapsed(cargaActual, aeropuerto.capacidadMax);
   const icon = getIconoAeropuertoCached(cargaActual, aeropuerto.capacidadMax, umbralVerde, umbralAmbar, collapsed);
-  const eventHandlers = useMemo(
-    () => ({ click: () => onSelectAeropuerto(aeropuerto) }),
-    [aeropuerto, onSelectAeropuerto]
-  );
+  const eventHandlers = useMemo(() => ({ click: () => onSelectAeropuerto(aeropuerto) }), [aeropuerto, onSelectAeropuerto]);
+
+  // Fondo dinámico del badge de carga para el Aeropuerto
+  let bgCarga = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+  if (aeropuerto.capacidadMax > 0) {
+    const p = (cargaActual / aeropuerto.capacidadMax) * 100;
+    if (collapsed) bgCarga = 'bg-red-600 text-white font-bold border-red-700 shadow-sm';
+    else if (p > umbralAmbar) bgCarga = 'bg-red-100 text-red-700 border-red-200';
+    else if (p > umbralVerde) bgCarga = 'bg-amber-100 text-amber-700 border-amber-200';
+  }
 
   return (
-    <Marker
-      position={[aeropuerto.latitud, aeropuerto.longitud]}
-      icon={icon}
-      eventHandlers={eventHandlers}
-    />
+    <Marker position={[aeropuerto.latitud, aeropuerto.longitud]} icon={icon} eventHandlers={eventHandlers}>
+      <Tooltip direction="top" offset={[0, -10]} opacity={1} className="custom-modern-tooltip">
+        <div className="flex flex-col min-w-[100px] font-sans">
+          {/* Header con Código del Aeropuerto */}
+          <div className="border-b flex items-center justify-between">
+            <span className="font-black text-blue-900 text-[12px] tracking-wide">
+              {aeropuerto.codigo}
+            </span>
+          </div>
+          
+          {/* Información Ciudad/País */}
+          <div className="text-xs text-slate-600 mb-1 leading-relaxed flex flex-col">
+            {aeropuerto.ciudad && <span className="font-semibold text-slate-700">{aeropuerto.ciudad}</span>}
+            {aeropuerto.pais && <span className="text-slate-600">{aeropuerto.pais}</span>}
+          </div>
+
+          {/* Badge de Capacidad */}
+          <div className={`flex justify-between items-center px-2 py-1.5 rounded-md border text-xs ${bgCarga}`}>
+            <span className="font-semibold">CAP :</span>
+            <span className="font-bold tracking-tight">{cargaActual} / {aeropuerto.capacidadMax}</span>
+          </div>
+        </div>
+      </Tooltip>
+    </Marker>
   );
 });
 
@@ -217,17 +255,47 @@ const PlaneMarker: React.FC<{
   onSelectVuelo,
 }) {
   const { lat, lon, angle } = getInterpolatedPosition(tramo, simTiempoMinutos);
-  const color = getPlaneColor(carga, tramo.capacidad, umbralVerde, umbralAmbar);
-  const icon = getIconoAvionCached(color, angle);
+  const colorHex = getPlaneColor(carga, tramo.capacidad, umbralVerde, umbralAmbar);
+  const icon = getIconoAvionCached(colorHex, angle);
   const eventHandlers = useMemo(() => ({ click: () => onSelectVuelo(tramo) }), [onSelectVuelo, tramo]);
 
+  // Fondo dinámico para el badge de carga
+  let cargaClass = 'bg-gray-100 text-gray-700 border-gray-200';
+  if (carga > 0) {
+    const p = (carga / Math.max(tramo.capacidad, 1)) * 100;
+    if (p <= umbralVerde) cargaClass = 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    else if (p <= umbralAmbar) cargaClass = 'bg-amber-100 text-amber-700 border-amber-200';
+    else cargaClass = 'bg-red-100 text-red-700 border-red-200';
+  }
+
   return (
-    <Marker
-      key={`plane-${prefix}-${tramo.vueloId}`}
-      position={[lat, lon]}
-      icon={icon}
-      eventHandlers={eventHandlers}
-    />
+    <Marker key={`plane-${prefix}-${tramo.vueloId}`} position={[lat, lon]} icon={icon} eventHandlers={eventHandlers}>
+      <Tooltip direction="top" offset={[0, -10]} opacity={1} className="custom-modern-tooltip">
+        <div className="flex flex-col min-w-[100px] font-sans">
+          {/* Header */}
+          <div className="border-b flex items-center justify-between">
+            <span className="font-extrabold text-slate-700 text-sm tracking-wide">
+              Vuelo #{tramo.vueloId}
+            </span>
+          </div>
+          
+          {/* Ruta original con códigos */}
+          <div className="flex flex-col gap-1 text-xs text-slate-600 mb-1">
+            <div className="flex items-center justify-between p-1 rounded border border-slate-100">
+              <span className="font-semibold text-slate-700 text-[13px]">{tramo.origen}</span>
+              <span className="text-slate-600 font-bold text-[10px]">➔</span>
+              <span className="font-semibold text-slate-700 text-[13px]">{tramo.destino}</span>
+            </div>
+          </div>
+
+          {/* Badge de estado de carga */}
+          <div className={`flex justify-between items-center px-2 py-1.5 rounded-md border text-xs ${cargaClass}`}>
+            <span className="font-semibold">CAP :</span>
+            <span className="font-bold">{carga} / {tramo.capacidad || 'N/A'}</span>
+          </div>
+        </div>
+      </Tooltip>
+    </Marker>
   );
 });
 
@@ -238,6 +306,8 @@ export default function MapaRutas({
   onSelectVuelo,
   onSelectAeropuerto,
   selectedVuelo,
+  vueloAEnfocar,
+  aeropuertoAEnfocar,
   umbralVerde,
   umbralAmbar,
   modoMapa,
@@ -249,6 +319,8 @@ export default function MapaRutas({
   const aeropuertos = resultado?.aeropuertos || [];
   const resultadoSA = resultado?.resultadoSA;
   const mostrarSA = true;
+  const [mapMaxZoom, setMapMaxZoom] = useState(DEFAULT_MAX_ZOOM);
+  const [mapMinZoom, setMapMinZoom] = useState<number | null>(null); // Estado dinámico para el zoom mínimo
 
   const rutasMuestraSA = useMemo(() => resultadoSA?.rutasMuestra || [], [resultadoSA?.rutasMuestra]);
   const tramosSA = useMemo(() => rutasMuestraSA.flatMap(r => r.tramos), [rutasMuestraSA]);
@@ -291,13 +363,11 @@ export default function MapaRutas({
     if (!resultado?.vuelosMaestros) return [];
     const active: TramoDTO[] = [];
     for (const v of resultado.vuelosMaestros) {
-      // 1. Check if flying today (diaOffset = simDia)
       const tToday = { ...v, diaOffset: simDia };
       if (isFlying(tToday, simTiempoMinutos)) {
         active.push(tToday);
         continue;
       }
-      // 2. Check if flying yesterday and crosses midnight (diaOffset = simDia - 1)
       if (simDia > 0) {
         const tYesterday = { ...v, diaOffset: simDia - 1 };
         if (isFlying(tYesterday, simTiempoMinutos)) {
@@ -327,7 +397,36 @@ export default function MapaRutas({
     return filtrarAvionesPorAeropuerto(emptyPlanesSA, filtrosAviones);
   }, [emptyPlanesSA, filtrosAviones]);
 
-  if (aeropuertos.length === 0) {
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const updateZooms = () => {
+      const width = window.innerWidth || document.documentElement.clientWidth || window.screen.width;
+      const height = window.innerHeight || document.documentElement.clientHeight || window.screen.height;
+      
+      // Actualizar Max Zoom (acercarse)
+      const nextMaxZoom = getMaxZoomForPageWidth(width);
+      setMapMaxZoom(prev => (prev === nextMaxZoom ? prev : nextMaxZoom));
+
+      // Actualizar Min Zoom (alejarse) - MODO COVER (sin franjas)
+      // 256 es el tamaño en pixeles de 1 tile completo del mundo en zoom 0
+      const zoomX = Math.log2(width / 256);
+      const zoomY = Math.log2(height / 256);
+      
+      // Tomamos el valor mayor. Esto asegura que la pantalla entera siempre esté cubierta.
+      const computedMinZoom = Math.max(zoomX, zoomY);
+      setMapMinZoom(Math.max(1, computedMinZoom));
+    };
+
+    updateZooms();
+    window.addEventListener('resize', updateZooms);
+
+    return () => window.removeEventListener('resize', updateZooms);
+  }, []);
+
+  if (aeropuertos.length === 0 || mapMinZoom === null) {
     return (
       <div className="flex flex-col items-center justify-center h-full rounded-lg bg-transparent">
         <IconMap className="mb-3 text-cyan-400/40" size={40} />
@@ -341,10 +440,13 @@ export default function MapaRutas({
       <MapContainer
         center={[20, 30]}
         zoom={3}
-        minZoom={2}
-        maxZoom={12}
-        maxBounds={[[-85, -180], [85, 180]]}
+        minZoom={mapMinZoom}
+        maxZoom={mapMaxZoom}
+        // Bloqueamos el movimiento horizontal (longitud -180 a 180) para que no se repita el mundo,
+        // pero dejamos las latitudes (verticales) en Infinity para permitir el modo "Cover".
+        maxBounds={[[-90, -180], [90, 180]]}
         maxBoundsViscosity={1.0}
+        zoomSnap={0.5}
         worldCopyJump={false}
         style={{ width: '100%', height: '100%', backgroundColor: '#aadaff' }}
         zoomControl={false}
@@ -353,12 +455,11 @@ export default function MapaRutas({
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
           attribution='&copy; CARTO'
-          maxZoom={12}
-          minZoom={2}
-          noWrap={true}
+          maxZoom={mapMaxZoom}
+          minZoom={mapMinZoom}
+          noWrap={true} // Obligatorio para evitar que Leaflet intente renderizar mapas vecinos lateralmente
         />
 
-        {/* Polilínea curva ortodrómica para el vuelo seleccionado */}
         {selectedVuelo && (
           <Polyline
             positions={getCurvaOrtodromicaCached(selectedVuelo.origenLat, selectedVuelo.origenLon, selectedVuelo.destinoLat, selectedVuelo.destinoLon)}
@@ -369,7 +470,6 @@ export default function MapaRutas({
           />
         )}
 
-        {/* Polilíneas curvas de vuelos cancelados del día actual */}
         {vuelosCanceladosHoy.map(vuelo => {
           if (!vuelo) return null;
           const origen = aeropuertos.find(a => a.codigo === vuelo.origen);
@@ -392,7 +492,6 @@ export default function MapaRutas({
           );
         })}
 
-        {/* Marcadores de aeropuertos */}
         {aeropuertos.filter(a => {
           if (filtroSemaforoAero === 'todos') return true;
           const carga = cargasAeropuertos[a.codigo] || 0;
@@ -415,7 +514,6 @@ export default function MapaRutas({
           />
         ))}
 
-        {/* Aviones SA en vuelo */}
         {mostrarSA && activePlanesSA.filter(t => {
           if (filtroSemaforoVuelos === 'todos') return true;
           const carga = cargaPorVueloSA[`${t.vueloId}-${t.diaOffset}`] || 0;
@@ -440,7 +538,6 @@ export default function MapaRutas({
           />
         ))}
 
-        {/* Aviones SA vacíos en vuelo */}
         {mostrarSA && emptyPlanesSAFiltered.filter(t => {
           if (filtroSemaforoVuelos === 'todos') return true;
           return filtroSemaforoVuelos === 'verde';
@@ -457,12 +554,16 @@ export default function MapaRutas({
           />
         ))}
 
-        <AjustadorMapa aeropuertos={aeropuertos} />
+        <AjustadorMapa aeropuertos={aeropuertos} maxZoom={mapMaxZoom} />
 
         <EnfocarAvion 
-          selectedVuelo={selectedVuelo} 
+          selectedVuelo={vueloAEnfocar}
           simTiempoMinutos={simTiempoMinutos} 
           getInterpolatedPosition={getInterpolatedPosition} 
+        />
+
+        <EnfocarAeropuerto 
+          aeropuertoAEnfocar={aeropuertoAEnfocar} 
         />
       </MapContainer>
       <style jsx global>{`
@@ -471,21 +572,19 @@ export default function MapaRutas({
           will-change: transform;
         }
 
-        /* Aeropuerto en colapso: pulso neón rojo */
         @keyframes airportCollapsePulse {
           0%, 100% {
             filter: drop-shadow(0 0 0px rgba(239, 68, 68, 0));
           }
           50% {
             filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.95))
-                    drop-shadow(0 0 20px rgba(239, 68, 68, 0.6));
+                  drop-shadow(0 0 20px rgba(239, 68, 68, 0.6));
           }
         }
         .airport-collapse-pulse {
           animation: airportCollapsePulse 0.9s ease-in-out infinite;
         }
 
-        /* Aeropuerto normal: sombra azul suave */
         .loadroute-airport-marker {
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
           z-index: 5000 !important;
@@ -497,7 +596,6 @@ export default function MapaRutas({
 
 // ========================== UTILS & MATH ========================== 
 
-// ── 1. MATEMÁTICA ORTODRÓMICA (GREAT CIRCLE) ──
 function getGreatCirclePoint(lat1: number, lon1: number, lat2: number, lon2: number, fraction: number) {
   const rLat1 = lat1 * TO_RAD;
   const rLon1 = lon1 * TO_RAD;
@@ -507,13 +605,11 @@ function getGreatCirclePoint(lat1: number, lon1: number, lat2: number, lon2: num
   const dLon = rLon2 - rLon1;
   const dLat = rLat2 - rLat1;
 
-  // Haversine
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(rLat1) * Math.cos(rLat2) * Math.sin(dLon / 2) ** 2;
   const d = 2 * Math.asin(Math.sqrt(a));
 
   if (d === 0) return { lat: lat1, lon: lon1, angle: 0 };
 
-  // Slerp (Spherical linear interpolation)
   const A = Math.sin((1 - fraction) * d) / Math.sin(d);
   const B = Math.sin(fraction * d) / Math.sin(d);
 
@@ -524,13 +620,10 @@ function getGreatCirclePoint(lat1: number, lon1: number, lat2: number, lon2: num
   const lat3 = Math.atan2(z, Math.sqrt(x * x + y * y));
   const lon3 = Math.atan2(y, x);
 
-  // Calcular el True Bearing (ángulo real desde el Norte)
   const yAngle = Math.sin(rLon2 - lon3) * Math.cos(rLat2);
   const xAngle = Math.cos(lat3) * Math.sin(rLat2) - Math.sin(lat3) * Math.cos(rLat2) * Math.cos(rLon2 - lon3);
   const trueBearing = Math.atan2(yAngle, xAngle) * TO_DEG;
   
-  // Ajuste visual: Tu SVG original del avión apunta hacia la derecha (Este, 90° en bearing).
-  // Restamos 90 grados para sincronizar el Norte real del mapa con la nariz de tu avión.
   const adjustedAngle = trueBearing - 90;
 
   return { 
@@ -560,7 +653,6 @@ function generarCurvaOrtodromica(lat1: number, lon1: number, lat2: number, lon2:
   return puntos;
 }
 
-// ── 2. UTILS ORIGINALES ──
 function filtrarAvionesPorAeropuerto(tramos: TramoDTO[], filtros?: FiltrosAvionesMapa) {
   if (!filtros || (!filtros.usarOrigen && !filtros.usarDestino)) return tramos;
   if (filtros.usarOrigen && filtros.origenes.length === 0) return [];
@@ -728,7 +820,6 @@ function isFlying(t: TramoDTO, simTotalMinutos: number) {
   return simTotalMinutos >= salidaTotal && simTotalMinutos <= llegadaTotal;
 }
 
-// ── 3. INTERPOLACIÓN INTEGRADA CON LA ESFERA ──
 function getInterpolatedPosition(t: TramoDTO, simTotalMinutos: number) {
   const salidaTotal = salidaTotalMinutos(t);
   const llegadaTotal = llegadaTotalMinutos(t);
@@ -740,7 +831,6 @@ function getInterpolatedPosition(t: TramoDTO, simTotalMinutos: number) {
   if (p < 0) p = 0;
   if (p > 1) p = 1;
   
-  // Ahora en lugar de matemática plana, invocamos la interpolación sobre la esfera
   return getGreatCirclePoint(t.origenLat, t.origenLon, t.destinoLat, t.destinoLon, p);
 }
 

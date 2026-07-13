@@ -7,11 +7,14 @@ import SidebarFiltroMapa from './SidebarFiltroMapa';
 import SidebarVuelos from './SidebarVuelos';
 import AdminPanel from './AdminPanel';
 import ResultadosPanel from './ResultadosPanel';
-import ModalEnvio from './ModalEnvio';
-import ModalAeropuerto from './ModalAeropuerto';
-import ModalVuelo from './ModalVuelo';
-import ModalColapso from './ModalColapso';
-import ModalReporteFinal from './ModalReporteFinal';
+import ModalEnvio from './Modals/ModalEnvio';
+import ModalAeropuerto from './Modals/ModalAeropuerto';
+import ModalVuelo from './Modals/ModalVuelo';
+import ModalColapso from './Modals/ModalColapso';
+import ModalReporteFinal from './Modals/ModalReporteFinal';
+
+// 👇 IMPORTACIÓN DEL HELPER (Asegúrate de ajustar la ruta según tu proyecto)
+import { obtenerUbicacionActualPedido } from '@/utils/pedidoHelpers';
 
 import {
   IconPackage, IconBuilding, IconSettings, IconScreen, IconPlane, IconClipboard,
@@ -86,7 +89,6 @@ interface DashboardViewProps {
   handleReiniciar: () => void;
   setFiltrosAvionesMapa: (filtros: any) => void;
 
-  formatFechaSimulacion: (fecha: string, dia: number) => string;
   formatoHora: (minutos: number) => string;
   formatTiempoTranscurrido: (minutos: number) => string;
   formatTiempoReal: (ms: number) => string;
@@ -145,7 +147,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   handleUmbralAmbar,
   handleReiniciar,
   setFiltrosAvionesMapa,
-  formatFechaSimulacion,
   formatoHora,
   formatTiempoTranscurrido,
   formatTiempoReal,
@@ -162,10 +163,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const escenario = resultado?.escenario ?? 1;
 
   const mostrarControlesYTranscurrido = escenario === 1 || escenario === 3;
-  const mostrarProgreso = escenario === 1; // 🌟 Único que conserva la barra
-  const mostrarFechaSimulacion = escenario === 1 || escenario === 3;
+  const mostrarProgreso = escenario === 1; 
 
   const [showReporteModal, setShowReporteModal] = useState(false);
+  
+  const [aeropuertoAEnfocar, setAeropuertoAEnfocar] = useState<any | null>(null);
+  const [vueloAEnfocar, setVueloAEnfocar] = useState<any | null>(null);
 
   // Abrir reporte automáticamente cuando la simulación termina
   useEffect(() => {
@@ -174,8 +177,58 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   }, [rangoFinalizado, mostrarProgreso]);
 
+  // ── FUNCIÓN CENTRALIZADA PARA ENFOCAR PEDIDOS ──
+  const handleEnfocarPedido = (pedido: any) => {
+    const vuelosMaestros = resultado?.vuelosMaestros || [];
+
+    console.log("=== DIAGNÓSTICO ENFOQUE ===");
+    console.log("Minuto actual del mapa (simTotalVisual):", simTotalVisual);
+    console.log("Estructura del pedido recibido:", pedido);
+
+    // 1. Obtenemos la ubicación analizada por el helper
+    const ubicacion = obtenerUbicacionActualPedido(pedido, vuelosMaestros, simTotalVisual);
+    console.log("Resultado del helper:", ubicacion);
+    
+    if (!ubicacion) return;
+
+    // 2. Si está volando
+    if (ubicacion.tipo === 'AVION') {
+      // 🚨 CORRECCIÓN CRÍTICA: Buscamos el objeto completo del vuelo maestro
+      // Primero intentamos buscar por ID de avión, si no, por ID de vuelo
+      const vueloCompleto = vuelosMaestros.find(
+        (v: any) => String(v.idAvion) === String(ubicacion.id) || String(v.id) === String(ubicacion.id)
+      );
+
+      console.log("Objeto de vuelo maestro encontrado para el mapa:", vueloCompleto);
+
+      if (vueloCompleto) {
+        setAeropuertoAEnfocar(null);
+        // Pasamos el objeto completo que tu componente MapaRutas sabe leer
+        setVueloAEnfocar(vueloCompleto); 
+      } else {
+        // Fallback: Si no hay objeto, enviamos el formato de tramo directo del pedido si existe
+        const tramoActual = pedido.tramos?.find((t: any) => 
+          simTotalVisual >= t.salidaMinutosGMT && simTotalVisual <= t.llegadaMinutosGMT
+        );
+        setAeropuertoAEnfocar(null);
+        setVueloAEnfocar(tramoActual || { id: ubicacion.id });
+      }
+    } 
+    // 3. Si está en tierra
+    else if (ubicacion.tipo === 'AEROPUERTO') {
+      const aeropuertoObjeto = resultado?.aeropuertos?.find(
+        (a: any) => String(a.id) === String(ubicacion.id) || String(a.codigo) === String(ubicacion.id)
+      );
+      
+      console.log("Objeto de aeropuerto encontrado para el mapa:", aeropuertoObjeto);
+
+      setVueloAEnfocar(null);
+      setAeropuertoAEnfocar(aeropuertoObjeto || { id: ubicacion.id });
+    }
+  };
+
   const labelEscenario = 
-    escenario === 1 ? 'Simulación' : 
+    escenario === 1 ? 'Simulación 5 días' : 
     escenario === 2 ? 'Operación' : 'Colapso';
 
   return (
@@ -192,52 +245,56 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <img src="/logo.png" alt="LoadRoute Logo" className="h-8 shrink-0" />
         </button>
         <div className="w-px h-6 bg-slate-700/60 shrink-0" />
+        
+        {/* Bloque de Escenario */}
+        <div className="flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Escenario</span>
+          <span className="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider">
+            {labelEscenario}
+          </span>
+        </div>
+        
+        {/* Hora actual */}
+        <div className="flex flex-col justify-center">
+          <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Hora actual</span>
+          <span className="text-sm font-mono text-slate-100 font-semibold leading-none">
+            {horaReal.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+          </span>
+        </div>
+        <div className="w-px h-6 bg-slate-700/60 shrink-0" />
 
         {/* Bloque de Tiempos dinámicos */}
         <div className="flex items-center gap-4 flex-1">
-          
-          {/* Bloque de Fecha Ajustado */}
-          <div className="flex flex-col justify-center">
-            <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">
-              {labelEscenario}
-            </span>
-            <span className="text-xs font-semibold text-slate-100 capitalize leading-none">
-              {mostrarFechaSimulacion
-                ? formatFechaSimulacion(fechaInicioRaw, simDia)
-                : horaReal.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
-              }
-            </span>
-          </div>
 
           {/* Reloj GMT */}
           <div className="flex flex-col justify-center">
             <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Hora GMT</span>
-            <span className="text-lg font-mono text-emerald-300 font-bold leading-none tracking-wider">
+            <span className="text-md font-mono text-emerald-300 font-bold leading-none tracking-wider">
               {formatoHora(simHoraMinutos)}
             </span>
           </div>
 
-          {/* Tiempo transcurrido (Habilitado para Escenarios 1 y 3) */}
+          {/* Tiempo transcurrido */}
           {mostrarControlesYTranscurrido && (
             <div className="flex flex-col justify-center">
               <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Transcurrido</span>
-              <span className="text-xs font-mono text-indigo-200 font-semibold leading-none">
+              <span className="text-md font-mono text-indigo-200 font-semibold leading-none">
                 {formatTiempoTranscurrido(simTranscurridoMinutos)}
               </span>
             </div>
           )}
 
-          {/* Tiempo Real de Cómputo (Solo Lotes) */}
+          {/* Tiempo Real de Cómputo */}
           {escenario === 1 && (
             <div className="flex flex-col justify-center">
               <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Tiempo Real</span>
-              <span className="text-xs font-mono text-cyan-300 font-bold leading-none">
+              <span className="text-md font-mono text-cyan-300 font-bold leading-none">
                 {formatTiempoReal(realElapsedMs)}
               </span>
             </div>
           )}
 
-          {/* Barra de progreso (Solo Escenario 1) */}
+          {/* Barra de progreso */}
           {mostrarProgreso && maxTotalMinutos !== null && maxTotalMinutos > 0 && (
             <div className="flex flex-col justify-center w-20">
               <div className="flex justify-between text-[10px] font-bold text-cyan-100 mb-1">
@@ -256,18 +313,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {mostrarProgreso && rangoFinalizado && (
             <div className="flex items-center gap-1.5 ml-2">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 select-none">
-                <IconCheck size={12} /> Finalizado
+                <IconCheck size={18} /> Finalizado
               </span>
               <button
                 onClick={() => setShowReporteModal(true)}
                 className="px-2.5 py-1 rounded bg-blue-600/25 hover:bg-blue-600/40 text-blue-300 border border-blue-500/30 text-[10px] font-semibold transition-all flex items-center gap-1 shadow-sm"
               >
-                📊 Ver Reporte
+                <IconChart size={18} />
+                Reporte
               </button>
             </div>
           )}
 
-          {/* Controles multimedia Play/Pause/Stop (Habilitados para Escenarios 1 y 3) */}
+          {/* Controles multimedia Play/Pause/Stop */}
           {mostrarControlesYTranscurrido && (
             <div className="flex items-center gap-1 ml-2">
               <button
@@ -300,16 +358,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           )}
         </div>
-
-        {/* Hora Reloj de Pared */}
-        <div className="flex flex-col items-end justify-center shrink-0">
-          <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Hora actual</span>
-          <span className="text-sm font-mono text-slate-100 font-semibold leading-none">
-            {horaReal.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-          </span>
-        </div>
-        <div className="w-px h-6 bg-slate-700/60 shrink-0" />
-
       </header>
 
       {/* ── BODY ── */}
@@ -361,6 +409,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onSelectVuelo={handleSelectVuelo}
             onSelectAeropuerto={handleSelectAeropuerto}
             selectedVuelo={vueloModal}
+            vueloAEnfocar={vueloAEnfocar}
+            aeropuertoAEnfocar={aeropuertoAEnfocar}
             umbralVerde={umbralVerde}
             umbralAmbar={umbralAmbar}
             modoMapa="sa"
@@ -439,10 +489,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     rutasActivas={rutasActivas}
                     umbralVerde={umbralVerde}
                     umbralAmbar={umbralAmbar}
-                    // 👇 NUEVO: Le pasamos la función que actualiza el estado del vuelo seleccionado
                     onSelectVuelo={handleSelectVuelo} 
-                    // 👇 OPCIONAL: Puedes pasarle también el vuelo seleccionado actual 
-                    // para poder ponerle un color de fondo "activo" a la fila seleccionada
                     selectedVuelo={vueloModal} 
                     fechaInicioRaw={fechaInicioRaw}
                     aeropuertos={resultado.aeropuertos}
@@ -458,7 +505,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       if (found) {
                         handleSelectEnvio(found);
                       } else {
-                        alert("El envío aún no ha sido ruteado en la simulación activa (la simulación no ha alcanzado la fecha de registro del envío).");
+                        alert("El envío aún no ha sido ruteado en la simulación activa.");
                       }
                     }}
                   />
@@ -486,6 +533,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         offsetRight={!!vueloModal || !!aeroModal || activeTab !== null}
         fechaInicioRaw={fechaInicioRaw}
         onClose={() => setEnvioModal(null)}
+        // 👇 PASAMOS LA NUEVA PROP AL MODAL DE DETALLE DEL PEDIDO
+        onEnfocarPedido={handleEnfocarPedido}
       />
       <ModalAeropuerto
         aeropuerto={aeroModal}
@@ -493,7 +542,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         simTiempoMinutos={simTotalVisual}
         cargasAeropuertoOverride={cargasAeropuertoFinales}
         onSelectEnvio={handleSelectEnvio}
-        onClose={() => setAeroModal(null)}
+        onClose={() => {
+          setAeroModal(null);
+          setAeropuertoAEnfocar(null);
+        }}
+        onEnfocarEnMapa={() => {
+          if (aeroModal) {
+            setAeropuertoAEnfocar(aeroModal);
+          }
+        }}
       />
       <ModalVuelo
         vuelo={vueloModal}
@@ -504,9 +561,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         onCancelarVuelo={onCancelarVuelo}
         onReactivarVuelo={onReactivarVuelo}
         onSelectEnvio={handleSelectEnvio}
-        onClose={() => setVueloModal(null)}
+        onClose={() => {
+          setVueloModal(null)
+          setVueloAEnfocar(null);
+        }}
         aeropuertos={resultado.aeropuertos}
         escenario={resultado.escenario}
+        onEnfocarEnMapa={() => {   
+          if (vueloModal) {
+            setVueloAEnfocar(vueloModal);
+          }
+        }}
       />
       <ModalColapso
         colapso={colapsoDatos}

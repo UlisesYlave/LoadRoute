@@ -58,13 +58,7 @@ const FILE_CONFIGS = [
   { key: 'envios',      label: 'Envíos', desc: '_envios_XXXX_.txt',          icon: <IconPackage size={18} />, accept: '.txt' },
 ];
 
-const MODOS_PERIODO = [
-  { id: 'semanal', label: 'Semanal', dias: 7 },
-  { id: 'cinco',   label: '5 días',  dias: 5 },
-  { id: 'tres',    label: '3 días',  dias: 3 },
-] as const;
-
-type ModoPeriodo = typeof MODOS_PERIODO[number]['id'];
+const DIAS_PERIODO = 5;
 
 function toBackendDate(htmlDate: string): string {
   return htmlDate.replace(/-/g, '');
@@ -130,7 +124,6 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
     vuelos:      { files: [], name: '' },
     envios:      { files: [], name: '' },
   });
-  const [modoPeriodo,            setModoPeriodo]            = useState<ModoPeriodo>('semanal');
   const [fechaInicio,            setFechaInicio]            = useState('');
   const [horaInicio,             setHoraInicio]             = useState('00:00');
   const [ejecutando,             setEjecutando]             = useState(false);
@@ -220,14 +213,9 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
     return archivosCargados > 0 ? `${archivosCargados} de 3 tipos cargados` : 'Aeropuertos, planes de vuelo y envíos';
   }, [escenario, archivosCargados, archivos.envios.files.length]);
 
-  const periodoSeleccionado = useMemo(
-    () => MODOS_PERIODO.find(modo => modo.id === modoPeriodo) || MODOS_PERIODO[0],
-    [modoPeriodo]
-  );
-
   const fechaFinCalculada = useMemo(
-    () => calcularFinPeriodo(fechaInicio, horaInicio, periodoSeleccionado.dias),
-    [fechaInicio, horaInicio, periodoSeleccionado.dias]
+    () => calcularFinPeriodo(fechaInicio, horaInicio, DIAS_PERIODO),
+    [fechaInicio, horaInicio]
   );
   const fechaInicioBackend = fechaInicio ? toBackendDateTime(fechaInicio, horaInicio) : undefined;
   const fechaFinBackend = escenario === 1 && fechaFinCalculada ? toBackendDateTimeFromDate(fechaFinCalculada) : undefined;
@@ -469,29 +457,6 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
                 <IconCalendar size={15} /> CONFIGURACIÓN
               </h3>
 
-              {/* 🌟 CONDICIONAL: Botones de Periodo solo en Escenario 1 */}
-              {escenario === 1 && (
-              <div className="grid grid-cols-3 gap-1.5">
-                {MODOS_PERIODO.map(modo => {
-                  const isActive = modoPeriodo === modo.id;
-                    return (
-                      <button
-                        key={modo.id}
-                        type="button"
-                        onClick={() => setModoPeriodo(modo.id)}
-                        className={`rounded-lg border px-2 py-2 text-[10px] font-semibold transition-all
-                          ${isActive
-                            ? 'border-cyan-400 bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/20'
-                            : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-cyan-500/40 hover:text-slate-200'
-                          }`}
-                      >
-                        {modo.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
               {/* Fecha + Hora Inicio */}
               <div className="rounded-lg border border-slate-700/40 bg-slate-800/20 p-2 space-y-1.5">
                 <div className="flex items-center justify-between">
@@ -524,7 +489,7 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
               {escenario === 1 && (
                 <p className={`text-[10px] flex items-center gap-1.5 px-1 ${fechaInicio ? 'text-emerald-400/80' : 'text-amber-400/80'}`}>
                   {fechaInicio ? <IconClock size={14} className="shrink-0" /> : <IconWarning size={14} className="shrink-0" />}
-                  <span>{fechaInicio ? `Duración: ${periodoSeleccionado.dias} días` : 'Selecciona inicio para calcular el periodo'}</span>
+                  <span>{fechaInicio ? `Duración: ${DIAS_PERIODO} días` : 'Selecciona inicio para calcular el periodo'}</span>
                 </p>
               )}
             </div>
