@@ -76,8 +76,12 @@ function aplicarFechasSimulacion(
   fechaInicioUsuario?: string,
   fechaFinUsuario?: string,
 ) {
-  const inicio = (fechaInicioUsuario && fechaInicioUsuario.length >= 12) ? fechaInicioUsuario : (res.fechaInicio || fechaInicioUsuario || '');
-  const fin = (fechaFinUsuario && fechaFinUsuario.length >= 12) ? fechaFinUsuario : (res.fechaFin || fechaFinUsuario || '');
+  const inicio = (fechaInicioUsuario && fechaInicioUsuario.length >= 8)
+    ? fechaInicioUsuario
+    : (res.fechaInicio || fechaInicioUsuario || '');
+  const fin = (fechaFinUsuario && fechaFinUsuario.length >= 8)
+    ? fechaFinUsuario
+    : (res.fechaFin || fechaFinUsuario || '');
   setInicio(inicio);
   setFin(fin);
 }

@@ -178,6 +178,8 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
     setEjecutando(true);
     onCargando(true);
     onError('');
+    if (activeInfo.fechaInicio) onFechaInicio?.(activeInfo.fechaInicio);
+    if (activeInfo.fechaFin) onFechaFin?.(activeInfo.fechaFin);
     setProgreso({ jobId: activeInfo.jobId, status: 'PENDING', progress: 0, message: 'Conectando a la simulación...' });
 
     try {

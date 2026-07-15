@@ -13,8 +13,8 @@ import ModalVuelo from './Modals/ModalVuelo';
 import ModalColapso from './Modals/ModalColapso';
 import ModalReporteFinal from './Modals/ModalReporteFinal';
 
-// 👇 IMPORTACIÓN DEL HELPER (Asegúrate de ajustar la ruta según tu proyecto)
 import { obtenerUbicacionActualPedido } from '@/utils/pedidoHelpers';
+import { formatFechaSimulacion, resolverFechaInicioRaw } from '@/utils/fechaSimulacion';
 
 import {
   IconPackage, IconBuilding, IconSettings, IconScreen, IconPlane, IconClipboard,
@@ -170,6 +170,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [aeropuertoAEnfocar, setAeropuertoAEnfocar] = useState<any | null>(null);
   const [vueloAEnfocar, setVueloAEnfocar] = useState<any | null>(null);
 
+  
+
   // ── CÁLCULO DE OCUPACIÓN DE FLOTA ACTIVA (EN VUELO) ──
   const statsFlotaActiva = useMemo(() => {
     const vuelosMaestros = resultado?.vuelosMaestros || [];
@@ -254,6 +256,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     const pct = totalCapacidad > 0 ? (totalCarga / totalCapacidad) * 100 : 0;
     return { pct, carga: totalCarga, capacidad: totalCapacidad, vuelosActivos };
   }, [resultado, rutasActivas, simTotalVisual, cancelacionesPorDia]);
+
+  const fechaInicioEfectiva = useMemo(
+    () => resolverFechaInicioRaw(fechaInicioRaw, resultado?.fechaInicio, resultado?.loteInicio),
+    [fechaInicioRaw, resultado?.fechaInicio, resultado?.loteInicio],
+  );
+
+  const fechaSimulacionFormateada = useMemo(
+    () => formatFechaSimulacion(fechaInicioEfectiva, simTotalVisual),
+    [fechaInicioEfectiva, simTotalVisual],
+  );
 
   // ── CÁLCULO DE OCUPACIÓN GLOBAL DE ALMACENES ──
   const statsAlmacenes = useMemo(() => {
@@ -421,6 +433,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         {/* Bloque de Tiempos dinámicos */}
         <div className="flex items-center gap-4 flex-1">
+
+          {/* Fecha y hora de simulación (antes del reloj GMT) */}
+          <div className="flex flex-col justify-center">
+            <span className="text-[10px] font-bold text-cyan-100 uppercase tracking-wider leading-none mb-1">Fecha Sim.</span>
+            <span className="text-md font-mono text-emerald-300 font-bold leading-none tracking-wider whitespace-nowrap">
+              {fechaSimulacionFormateada}
+            </span>
+          </div>
 
           {/* Reloj GMT */}
           <div className="flex flex-col justify-center">
