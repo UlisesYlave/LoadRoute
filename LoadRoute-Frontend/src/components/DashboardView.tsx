@@ -179,51 +179,112 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // ── FUNCIÓN CENTRALIZADA PARA ENFOCAR PEDIDOS ──
   const handleEnfocarPedido = (pedido: any) => {
+    if (!pedido) return;
+
     const vuelosMaestros = resultado?.vuelosMaestros || [];
 
-    console.log("=== DIAGNÓSTICO ENFOQUE ===");
-    console.log("Minuto actual del mapa (simTotalVisual):", simTotalVisual);
-    console.log("Estructura del pedido recibido:", pedido);
-
-    // 1. Obtenemos la ubicación analizada por el helper
-    const ubicacion = obtenerUbicacionActualPedido(pedido, vuelosMaestros, simTotalVisual);
-    console.log("Resultado del helper:", ubicacion);
-    
-    if (!ubicacion) return;
-
-    // 2. Si está volando
-    if (ubicacion.tipo === 'AVION') {
-      // 🚨 CORRECCIÓN CRÍTICA: Buscamos el objeto completo del vuelo maestro
-      // Primero intentamos buscar por ID de avión, si no, por ID de vuelo
-      const vueloCompleto = vuelosMaestros.find(
-        (v: any) => String(v.idAvion) === String(ubicacion.id) || String(v.id) === String(ubicacion.id)
-      );
-
-      console.log("Objeto de vuelo maestro encontrado para el mapa:", vueloCompleto);
-
-      if (vueloCompleto) {
-        setAeropuertoAEnfocar(null);
-        // Pasamos el objeto completo que tu componente MapaRutas sabe leer
-        setVueloAEnfocar(vueloCompleto); 
-      } else {
-        // Fallback: Si no hay objeto, enviamos el formato de tramo directo del pedido si existe
-        const tramoActual = pedido.tramos?.find((t: any) => 
-          simTotalVisual >= t.salidaMinutosGMT && simTotalVisual <= t.llegadaMinutosGMT
-        );
-        setAeropuertoAEnfocar(null);
-        setVueloAEnfocar(tramoActual || { id: ubicacion.id });
+    // 1. Calcular el estado del envío para saber qué enfocar
+    let estado = 'No ruteado';
+    if (pedido.tramos && pedido.tramos.length > 0) {
+      const receiptTime = (pedido.recepcionDiaOffset ?? 0) * 1440 + (pedido.recepcionMinutosGMT ?? 0);
+      const lastTramo = pedido.tramos[pedido.tramos.length - 1];
+      let llegadaLast = (lastTramo.diaOffset ?? 0) * 1440 + lastTramo.llegadaMinutosGMT;
+      if (lastTramo.llegadaMinutosGMT < lastTramo.salidaMinutosGMT) {
+        llegadaLast += 1440;
       }
-    } 
-    // 3. Si está en tierra
-    else if (ubicacion.tipo === 'AEROPUERTO') {
-      const aeropuertoObjeto = resultado?.aeropuertos?.find(
-        (a: any) => String(a.id) === String(ubicacion.id) || String(a.codigo) === String(ubicacion.id)
-      );
-      
-      console.log("Objeto de aeropuerto encontrado para el mapa:", aeropuertoObjeto);
 
-      setVueloAEnfocar(null);
-      setAeropuertoAEnfocar(aeropuertoObjeto || { id: ubicacion.id });
+      if (simTotalVisual < receiptTime) {
+        estado = 'No recibido';
+      } else if (simTotalVisual >= llegadaLast) {
+        estado = 'Entregado';
+      } else {
+        // Verificar si está volando
+        let estaVolando = false;
+        for (const t of pedido.tramos) {
+          const salidaLeg = (t.diaOffset ?? 0) * 1440 + t.salidaMinutosGMT;
+          let llegadaLeg = (t.diaOffset ?? 0) * 1440 + t.llegadaMinutosGMT;
+          if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+            llegadaLeg += 1440;
+          }
+          if (simTotalVisual >= salidaLeg && simTotalVisual <= llegadaLeg) {
+            estaVolando = true;
+            break;
+          }
+        }
+
+        if (estaVolando) {
+          estado = 'En vuelo';
+        } else {
+          // Si no está volando, ver si ya despegó del origen
+          const firstLeg = pedido.tramos[0];
+          const departureFirst = (firstLeg.diaOffset ?? 0) * 1440 + firstLeg.salidaMinutosGMT;
+          if (simTotalVisual < departureFirst) {
+            estado = 'Esperando';
+          } else {
+            estado = 'Esperando escala';
+          }
+        }
+      }
+    }
+
+    console.log("=== ENFOQUE DE PEDIDO ===");
+    console.log("Estado calculado del pedido:", estado);
+
+    // 2. Ejecutar la acción según el estado
+    if (estado === 'En vuelo') {
+      const tramoActual = pedido.tramos?.find((t: any) => {
+        const salidaLeg = (t.diaOffset ?? 0) * 1440 + t.salidaMinutosGMT;
+        let llegadaLeg = (t.diaOffset ?? 0) * 1440 + t.llegadaMinutosGMT;
+        if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+          llegadaLeg += 1440;
+        }
+        return simTotalVisual >= salidaLeg && simTotalVisual <= llegadaLeg;
+      });
+
+      if (tramoActual) {
+        const vueloCompleto = vuelosMaestros.find(
+          (v: any) => String(v.vueloId) === String(tramoActual.vueloId)
+        );
+
+        const vueloASeleccionar = vueloCompleto ? { ...vueloCompleto, diaOffset: tramoActual.diaOffset } : tramoActual;
+        
+        setAeropuertoAEnfocar(null);
+        setVueloAEnfocar(vueloASeleccionar);
+        handleSelectVuelo(vueloASeleccionar);
+      }
+    } else if (estado === 'Entregado' || estado === 'Esperando' || estado === 'Esperando escala') {
+      let codigoAero = pedido.origen;
+      
+      if (estado === 'Entregado') {
+        codigoAero = pedido.destino;
+      } else if (estado === 'Esperando escala') {
+        for (let i = 0; i < pedido.tramos.length - 1; i++) {
+          const currentLeg = pedido.tramos[i];
+          const nextLeg = pedido.tramos[i + 1];
+
+          let arrivalCurrent = (currentLeg.diaOffset ?? 0) * 1440 + currentLeg.llegadaMinutosGMT;
+          if (currentLeg.llegadaMinutosGMT < currentLeg.salidaMinutosGMT) {
+            arrivalCurrent += 1440;
+          }
+
+          const departureNext = (nextLeg.diaOffset ?? 0) * 1440 + nextLeg.salidaMinutosGMT;
+
+          if (simTotalVisual >= arrivalCurrent && simTotalVisual < departureNext) {
+            codigoAero = currentLeg.destino;
+            break;
+          }
+        }
+      }
+
+      const aeropuertoObjeto = resultado?.aeropuertos?.find(
+        (a: any) => a.codigo === codigoAero
+      );
+
+      if (aeropuertoObjeto) {
+        setVueloAEnfocar(null);
+        setAeropuertoAEnfocar(aeropuertoObjeto);
+        handleSelectAeropuerto(aeropuertoObjeto);
+      }
     }
   };
 
