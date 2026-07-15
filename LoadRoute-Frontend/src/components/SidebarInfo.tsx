@@ -19,6 +19,97 @@ interface SidebarInfoProps {
 
 type OrdenAero = 'codigo' | 'ciudad' | 'ocupacion_desc' | 'ocupacion_asc';
 
+const getEnvioStatus = (e: RutaMuestra, simTime: number) => {
+  if (!e.tramos || e.tramos.length === 0) {
+    return {
+      label: 'No ruteado',
+      bg: 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+    };
+  }
+
+  // 1. Calcular recepción
+  const receiptTime = (e.recepcionDiaOffset ?? 0) * 1440 + (e.recepcionMinutosGMT ?? 0);
+  if (simTime < receiptTime) {
+    return {
+      label: 'No recibido',
+      bg: 'bg-slate-700/40 text-slate-400 border-slate-600/30'
+    };
+  }
+
+  // 2. Calcular entrega (fin del último tramo)
+  const lastTramo = e.tramos[e.tramos.length - 1];
+  let llegadaLast = (lastTramo.diaOffset ?? 0) * 1440 + lastTramo.llegadaMinutosGMT;
+  if (lastTramo.llegadaMinutosGMT < lastTramo.salidaMinutosGMT) {
+    llegadaLast += 1440;
+  }
+
+  if (simTime >= llegadaLast) {
+    return {
+      label: 'Entregado',
+      bg: 'bg-emerald-500/25 text-emerald-300 border-emerald-500/30 font-bold'
+    };
+  }
+
+  // 3. Verificar si está volando
+  for (const t of e.tramos) {
+    const salidaLeg = (t.diaOffset ?? 0) * 1440 + t.salidaMinutosGMT;
+    let llegadaLeg = (t.diaOffset ?? 0) * 1440 + t.llegadaMinutosGMT;
+    if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+      llegadaLeg += 1440;
+    }
+    if (simTime >= salidaLeg && simTime <= llegadaLeg) {
+      return {
+        label: 'En vuelo',
+        bg: 'bg-blue-500/20 text-blue-300 border-blue-500/30 font-bold'
+      };
+    }
+  }
+
+  // 4. Si no está en vuelo y no ha llegado a su destino final:
+  // - Si está en el origen (es decir, el primer vuelo aún no ha salido):
+  const firstLeg = e.tramos[0];
+  const departureFirst = (firstLeg.diaOffset ?? 0) * 1440 + firstLeg.salidaMinutosGMT;
+  if (simTime < departureFirst) {
+    return {
+      label: 'Esperando',
+      bg: 'bg-amber-500/20 text-amber-300 border-amber-500/30 font-bold'
+    };
+  }
+
+  // - Si está en un aeropuerto intermedio (esperando escala):
+  // (es decir, después de que llegó algún tramo y antes de que salga el siguiente)
+  for (let i = 0; i < e.tramos.length - 1; i++) {
+    const currentLeg = e.tramos[i];
+    const nextLeg = e.tramos[i + 1];
+
+    let arrivalCurrent = (currentLeg.diaOffset ?? 0) * 1440 + currentLeg.llegadaMinutosGMT;
+    if (currentLeg.llegadaMinutosGMT < currentLeg.salidaMinutosGMT) {
+      arrivalCurrent += 1440;
+    }
+
+    const departureNext = (nextLeg.diaOffset ?? 0) * 1440 + nextLeg.salidaMinutosGMT;
+
+    if (simTime > arrivalCurrent && simTime < departureNext) {
+      return {
+        label: 'Esperando escala',
+        bg: 'bg-orange-500/20 text-orange-300 border-orange-500/30 font-bold'
+      };
+    }
+  }
+
+  // Fallback si no encaja en los anteriores (por ejemplo si está en tránsito general)
+  return {
+    label: 'Esperando',
+    bg: 'bg-amber-500/20 text-amber-300 border-amber-500/30 font-bold'
+  };
+};
+
+function formatMinutosGMT(minutos: number): string {
+  const h = Math.floor(minutos / 60) % 24;
+  const m = Math.floor(minutos % 60);
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
 function SidebarInfo({
   envios,
   aeropuertos,
@@ -43,22 +134,95 @@ function SidebarInfo({
   const [pedidosPageSize,  setPedidosPageSize]  = useState(10);
   const [aeroPageSize,     setAeroPageSize]     = useState(10);
 
+  const [filtroOrigen,     setFiltroOrigen]     = useState('todos');
+  const [filtroDestino,    setFiltroDestino]    = useState('todos');
+  const [filtroEstado,     setFiltroEstado]     = useState('todos');
+  const [filtroUltimas4Horas, setFiltroUltimas4Horas] = useState(false);
+  const [ordenPedidos,     setOrdenPedidos]     = useState<'none' | 'salida_asc' | 'llegada_asc'>('none');
+
   // ── Continentes únicos disponibles ──
   const continentes = useMemo(
     () => Array.from(new Set(aeropuertos.map(a => a.continente).filter(Boolean))).sort(),
     [aeropuertos]
   );
 
-  // ── Envíos filtrados ──
-  const filteredEnvios = useMemo(() => envios.filter(e => {
-    const q = searchEnvios.toLowerCase();
-    if (!q) return true;
-    return (
-      e.envioId.toLowerCase().includes(q) ||
-      e.origen.toLowerCase().includes(q) ||
-      e.destino.toLowerCase().includes(q)
-    );
-  }), [envios, searchEnvios]);
+  // ── Aeropuertos y ciudades para filtros de envíos ──
+  const optionsAeropuertos = useMemo(() => {
+    return [...aeropuertos]
+      .map(a => ({
+        codigo: a.codigo,
+        label: `${a.pais.toUpperCase()}-${a.codigo.toUpperCase()}`
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [aeropuertos]);
+
+  const filteredEnvios = useMemo(() => {
+    let result = envios.filter(e => {
+      if (filtroOrigen !== 'todos' && e.origen !== filtroOrigen) return false;
+      if (filtroDestino !== 'todos' && e.destino !== filtroDestino) return false;
+
+      // Filtro por Estado
+      const status = getEnvioStatus(e, simTiempoMinutos);
+      if (filtroEstado !== 'todos' && status.label !== filtroEstado) {
+        return false;
+      }
+
+      // Filtro por entregados en últimas 4 horas
+      if (filtroUltimas4Horas) {
+        if (status.label !== 'Entregado') return false;
+
+        const lastTramo = e.tramos[e.tramos.length - 1];
+        let llegadaLast = (lastTramo.diaOffset ?? 0) * 1440 + lastTramo.llegadaMinutosGMT;
+        if (lastTramo.llegadaMinutosGMT < lastTramo.salidaMinutosGMT) {
+          llegadaLast += 1440;
+        }
+
+        if (llegadaLast < simTiempoMinutos - 240 || llegadaLast > simTiempoMinutos) {
+          return false;
+        }
+      }
+
+      const q = searchEnvios.toLowerCase();
+      if (!q) return true;
+      return (
+        e.envioId.toLowerCase().includes(q) ||
+        e.origen.toLowerCase().includes(q) ||
+        e.destino.toLowerCase().includes(q)
+      );
+    });
+
+    if (ordenPedidos !== 'none') {
+      result = [...result].sort((a, b) => {
+        const hasA = a.tramos && a.tramos.length > 0;
+        const hasB = b.tramos && b.tramos.length > 0;
+        if (!hasA && !hasB) return 0;
+        if (!hasA) return 1; // Colocar no ruteados al final
+        if (!hasB) return -1;
+
+        if (ordenPedidos === 'salida_asc') {
+          const salidaA = (a.tramos[0].diaOffset ?? 0) * 1440 + a.tramos[0].salidaMinutosGMT;
+          const salidaB = (b.tramos[0].diaOffset ?? 0) * 1440 + b.tramos[0].salidaMinutosGMT;
+          return salidaA - salidaB;
+        }
+
+        if (ordenPedidos === 'llegada_asc') {
+          const lastA = a.tramos[a.tramos.length - 1];
+          let llegadaA = (lastA.diaOffset ?? 0) * 1440 + lastA.llegadaMinutosGMT;
+          if (lastA.llegadaMinutosGMT < lastA.salidaMinutosGMT) llegadaA += 1440;
+
+          const lastB = b.tramos[b.tramos.length - 1];
+          let llegadaB = (lastB.diaOffset ?? 0) * 1440 + lastB.llegadaMinutosGMT;
+          if (lastB.llegadaMinutosGMT < lastB.salidaMinutosGMT) llegadaB += 1440;
+
+          return llegadaA - llegadaB;
+        }
+
+        return 0;
+      });
+    }
+
+    return result;
+  }, [envios, searchEnvios, filtroOrigen, filtroDestino, filtroEstado, filtroUltimas4Horas, simTiempoMinutos, ordenPedidos]);
 
   // ── Aeropuertos filtrados + ordenados ──
   const filteredAero = useMemo(() => {
@@ -106,7 +270,7 @@ function SidebarInfo({
   // Resetear páginas cuando cambian búsquedas o filtros
   useEffect(() => {
     setPedidosPage(1);
-  }, [searchEnvios]);
+  }, [searchEnvios, filtroOrigen, filtroDestino, filtroEstado, filtroUltimas4Horas, ordenPedidos]);
 
   useEffect(() => {
     setAeroPage(1);
@@ -204,8 +368,8 @@ function SidebarInfo({
     return (
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="px-3 pt-3 pb-2 bg-[#0f1f3d]/80 border-b border-slate-700/50 shrink-0 backdrop-blur-sm">
-          <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider mb-2">
+        <div className="px-3 pt-3 pb-2 bg-[#0f1f3d]/80 border-b border-slate-700/50 shrink-0 backdrop-blur-sm space-y-2">
+          <p className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
             Pedidos ({filteredEnvios.length}/{envios.length})
           </p>
           <div className="relative">
@@ -221,6 +385,79 @@ function SidebarInfo({
                          transition-all"
             />
           </div>
+
+          {/* Ordenar Pedidos */}
+          <div>
+            <select
+              value={ordenPedidos}
+              onChange={e => setOrdenPedidos(e.target.value as any)}
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                         text-xs text-slate-300 outline-none focus:border-blue-500/50 cursor-pointer"
+            >
+              <option value="none">Ordenar por...</option>
+              <option value="salida_asc">Hora de salida (primera)</option>
+              <option value="llegada_asc">Hora de llegada (primera)</option>
+            </select>
+          </div>
+
+          {/* Comboboxes de Origen y Destino */}
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={filtroOrigen}
+              onChange={e => setFiltroOrigen(e.target.value)}
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                         text-xs text-slate-300 outline-none focus:border-blue-500/50 cursor-pointer"
+            >
+              <option value="todos">Cualquier origen</option>
+              {optionsAeropuertos.map(opt => (
+                <option key={opt.codigo} value={opt.codigo}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filtroDestino}
+              onChange={e => setFiltroDestino(e.target.value)}
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                         text-xs text-slate-300 outline-none focus:border-blue-500/50 cursor-pointer"
+            >
+              <option value="todos">Cualquier destino</option>
+              {optionsAeropuertos.map(opt => (
+                <option key={opt.codigo} value={opt.codigo}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Combobox de Estado y Checkbox Últimas 4 Horas */}
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={filtroEstado}
+              onChange={e => setFiltroEstado(e.target.value)}
+              className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                         text-xs text-slate-300 outline-none focus:border-blue-500/50 cursor-pointer"
+            >
+              <option value="todos">Todos los estados</option>
+              <option value="En vuelo">En vuelo</option>
+              <option value="Entregado">Entregado</option>
+              <option value="Esperando">Esperando</option>
+              <option value="Esperando escala">Esperando escala</option>
+            </select>
+
+            <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+              <input
+                type="checkbox"
+                checked={filtroUltimas4Horas}
+                onChange={e => setFiltroUltimas4Horas(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 accent-blue-500 cursor-pointer"
+              />
+              <span className="text-[10px] text-slate-300 font-semibold tracking-wide uppercase leading-tight">
+                Entregados últ. 4h
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Lista */}
@@ -228,26 +465,44 @@ function SidebarInfo({
           {paginatedEnvios.length === 0 ? (
             <p className="text-center text-slate-600 text-xs pt-8">Sin resultados</p>
           ) : (
-            paginatedEnvios.map((e) => (
-              <div
-                key={e.envioId}
-                onClick={() => onSelectEnvio(e)}
-                className="bg-[#122340] border border-slate-700/50 rounded-lg p-3 cursor-pointer
-                           hover:border-blue-500/50 hover:bg-[#162a4d] transition-all"
-              >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-mono text-xs text-blue-400">{e.envioId}</span>
-                  <span className="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-slate-200">
-                    {e.maletas} maletas
-                  </span>
+            paginatedEnvios.map((e) => {
+              const status = getEnvioStatus(e, simTiempoMinutos);
+              return (
+                <div
+                  key={e.envioId}
+                  onClick={() => onSelectEnvio(e)}
+                  className="bg-[#122340] border border-slate-700/50 rounded-lg p-3 cursor-pointer
+                             hover:border-blue-500/50 hover:bg-[#162a4d] transition-all"
+                >
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="font-mono text-xs text-blue-400">{e.envioId}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-wider whitespace-nowrap ${status.bg}`}>
+                        {status.label}
+                      </span>
+                      <span className="bg-slate-800 text-[10px] px-2 py-0.5 rounded text-slate-200 font-mono">
+                        {e.maletas === 1 ? '1 maleta' : `${e.maletas} maletas`}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs font-mono text-slate-200">
+                    <span>{e.origen}</span>
+                    <span className="text-slate-400 text-[10px]">→</span>
+                    <span>{e.destino}</span>
+                  </div>
+                  {e.tramos && e.tramos.length > 0 && (
+                    <div className="flex justify-between text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-700/30">
+                      <span>
+                        Despega: D{e.tramos[0].diaOffset + 1} {formatMinutosGMT(e.tramos[0].salidaMinutosGMT)}
+                      </span>
+                      <span>
+                        Llega: D{e.tramos[e.tramos.length - 1].diaOffset + (e.tramos[e.tramos.length - 1].llegadaMinutosGMT < e.tramos[e.tramos.length - 1].salidaMinutosGMT ? 1 : 0) + 1} {formatMinutosGMT(e.tramos[e.tramos.length - 1].llegadaMinutosGMT)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 mt-2 text-xs font-mono text-slate-200">
-                  <span>{e.origen}</span>
-                  <span className="text-slate-400 text-[10px]">→</span>
-                  <span>{e.destino}</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
 
@@ -422,16 +677,14 @@ export default React.memo(SidebarInfo, (prev, next) => {
     prev.onSelectAeropuerto !== next.onSelectAeropuerto ||
     prev.umbralVerde     !== next.umbralVerde     ||
     prev.umbralAmbar     !== next.umbralAmbar     ||
-    prev.filtroSemaforo  !== next.filtroSemaforo
+    prev.filtroSemaforo  !== next.filtroSemaforo  ||
+    prev.simTiempoMinutos !== next.simTiempoMinutos
   ) {
     return false;
   }
 
   if (next.activeTab === 'aeropuertos') {
-    return (
-      prev.simTiempoMinutos      === next.simTiempoMinutos &&
-      prev.cargasAeropuertoOverride === next.cargasAeropuertoOverride
-    );
+    return prev.cargasAeropuertoOverride === next.cargasAeropuertoOverride;
   }
 
   return true;
