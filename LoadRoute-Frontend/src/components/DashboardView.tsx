@@ -1,4 +1,4 @@
-import React, { ReactNode, useState, useEffect } from 'react';
+import React, { ReactNode, useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
 import SidebarInfo from './SidebarInfo';
@@ -169,6 +169,101 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   
   const [aeropuertoAEnfocar, setAeropuertoAEnfocar] = useState<any | null>(null);
   const [vueloAEnfocar, setVueloAEnfocar] = useState<any | null>(null);
+
+  // ── CÁLCULO DE OCUPACIÓN DE FLOTA ACTIVA (EN VUELO) ──
+  const statsFlotaActiva = useMemo(() => {
+    const vuelosMaestros = resultado?.vuelosMaestros || [];
+    if (vuelosMaestros.length === 0 || !rutasActivas) {
+      return { pct: 0, carga: 0, capacidad: 0, vuelosActivos: 0 };
+    }
+
+    // 1. Calcular la carga de cada vuelo maestro por día
+    const cargaPorVuelo: Record<string, number> = {};
+    for (const ruta of rutasActivas) {
+      if (!ruta.tramos) continue;
+      const vuelosRuta = new Set<string>();
+      for (const tramo of ruta.tramos) {
+        const key = `${tramo.vueloId}-${tramo.diaOffset}`;
+        if (vuelosRuta.has(key)) continue;
+        vuelosRuta.add(key);
+        cargaPorVuelo[key] = (cargaPorVuelo[key] || 0) + ruta.maletas;
+      }
+    }
+
+    // 2. Determinar qué vuelos están en el aire en simTotalVisual
+    let totalCarga = 0;
+    let totalCapacidad = 0;
+    let vuelosActivos = 0;
+
+    const tramosVistos = new Set<string>();
+    for (const ruta of rutasActivas) {
+      if (!ruta.tramos) continue;
+      for (const t of ruta.tramos) {
+        const key = `${t.vueloId}-${t.diaOffset}`;
+        if (tramosVistos.has(key)) continue;
+        
+        // Verificar si está volando
+        const salidaLeg = (t.diaOffset ?? 0) * 1440 + t.salidaMinutosGMT;
+        let llegadaLeg = (t.diaOffset ?? 0) * 1440 + t.llegadaMinutosGMT;
+        if (t.llegadaMinutosGMT < t.salidaMinutosGMT) {
+          llegadaLeg += 1440;
+        }
+
+        if (simTotalVisual >= salidaLeg && simTotalVisual <= llegadaLeg) {
+          tramosVistos.add(key);
+          const carga = cargaPorVuelo[key] || 0;
+          totalCarga += carga;
+          totalCapacidad += t.capacidad;
+          vuelosActivos++;
+        }
+      }
+    }
+
+    // También verificamos si hay vuelos vacíos en el aire
+    const simDia = Math.floor(simTotalVisual / 1440);
+    const diasAChequear = [simDia];
+    if (simDia > 0) diasAChequear.push(simDia - 1);
+
+    for (const v of vuelosMaestros) {
+      for (const d of diasAChequear) {
+        const key = `${v.vueloId}-${d}`;
+        if (tramosVistos.has(key)) continue; // Ya contado
+
+        // Verificar si está volando
+        const salidaLeg = d * 1440 + v.salidaMinutosGMT;
+        let llegadaLeg = d * 1440 + v.llegadaMinutosGMT;
+        if (v.llegadaMinutosGMT < v.salidaMinutosGMT) {
+          llegadaLeg += 1440;
+        }
+
+        // Si este vuelo está cancelado hoy, no vuela
+        const listCancelaciones = cancelacionesPorDia || resultado?.cancelacionesPorDiaSA;
+        const canceladosHoy = listCancelaciones?.[d] || [];
+        if (canceladosHoy.includes(v.vueloId)) {
+          continue;
+        }
+
+        if (simTotalVisual >= salidaLeg && simTotalVisual <= llegadaLeg) {
+          tramosVistos.add(key);
+          totalCapacidad += v.capacidad;
+          vuelosActivos++;
+        }
+      }
+    }
+
+    const pct = totalCapacidad > 0 ? (totalCarga / totalCapacidad) * 100 : 0;
+    return { pct, carga: totalCarga, capacidad: totalCapacidad, vuelosActivos };
+  }, [resultado, rutasActivas, simTotalVisual, cancelacionesPorDia]);
+
+  // ── CÁLCULO DE OCUPACIÓN GLOBAL DE ALMACENES ──
+  const statsAlmacenes = useMemo(() => {
+    if (!globalStatsAeropuertos) {
+      return { pct: 0, carga: 0, capacidad: 0 };
+    }
+    const { carga, capacidad } = globalStatsAeropuertos;
+    const pct = capacidad > 0 ? (carga / capacidad) * 100 : 0;
+    return { pct, carga, capacidad };
+  }, [globalStatsAeropuertos]);
 
   // Abrir reporte automáticamente cuando la simulación termina
   useEffect(() => {
@@ -482,6 +577,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             filtroSemaforoAero={filtroSemaforoAero}
           />
 
+
+
           {/* PANEL LATERAL IZQUIERDO */}
           <div
             className="absolute top-0 left-0 h-full z-[1000] overflow-hidden pointer-events-none"
@@ -528,6 +625,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     diasSimulados={diasSimulados}
                     realElapsedMs={realElapsedMs}
                     isOwner={typeof window !== 'undefined' ? (jobOwner === localStorage.getItem('sessionId')) : true}
+                    statsFlotaActiva={statsFlotaActiva}
+                    statsAlmacenes={statsAlmacenes}
                   />
                 )}
                 {activeTab === 'pantalla' && (
