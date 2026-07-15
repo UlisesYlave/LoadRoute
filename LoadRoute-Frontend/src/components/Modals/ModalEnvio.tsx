@@ -7,7 +7,8 @@ interface ModalEnvioProps {
   onClose: () => void;
   offsetRight?: boolean;
   fechaInicioRaw?: string;
-  onEnfocarPedido: (pedido: any) => void; // 👈 Prop agregada
+  onEnfocarPedido: (pedido: any) => void;
+  simTiempoMinutos?: number;
 }
 
 function formatGmtMinute(minutos?: number): string {
@@ -31,7 +32,7 @@ function getFechaLocalDate(fechaInicioRaw: string, diaOffset: number): string {
   return `${year}-${month}-${day}`;
 }
 
-export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw, onEnfocarPedido }: ModalEnvioProps) {
+export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw, onEnfocarPedido, simTiempoMinutos }: ModalEnvioProps) {
   const initialX = offsetRight ? 380 : 64;
   const initialY = 64;
   const { position, onMouseDown } = useDraggable(initialX, initialY, !!envio);
@@ -126,35 +127,69 @@ export default function ModalEnvio({ envio, onClose, offsetRight, fechaInicioRaw
             </p>
           ) : (
             <div className="max-h-56 overflow-y-auto custom-scrollbar divide-y divide-slate-700/50">
-              {envio.tramos.map((tramo, i) => (
-                <div key={`${tramo.vueloId}-${i}`} className="px-2.5 py-2">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-100">Vuelo #{tramo.vueloId}</p>
-                      <p className="mt-0.5 text-[10px] font-mono text-slate-400">
-                        {tramo.origen} <span className="text-slate-600">-&gt;</span> {tramo.destino}
-                      </p>
+              {envio.tramos.map((tramo, i) => {
+                const salidaTotal = (tramo.diaOffset ?? 0) * 1440 + tramo.salidaMinutosGMT;
+                let llegadaTotal = (tramo.diaOffset ?? 0) * 1440 + tramo.llegadaMinutosGMT;
+                if (tramo.llegadaMinutosGMT < tramo.salidaMinutosGMT) {
+                  llegadaTotal += 1440;
+                }
+
+                let statusBadge = null;
+                if (simTiempoMinutos !== undefined) {
+                  if (simTiempoMinutos >= llegadaTotal) {
+                    statusBadge = (
+                      <span className="shrink-0 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        ✓ Ya llegó
+                      </span>
+                    );
+                  } else if (simTiempoMinutos < salidaTotal) {
+                    statusBadge = (
+                      <span className="shrink-0 bg-slate-800 border border-slate-700 text-slate-400 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        ⌚ Por salir
+                      </span>
+                    );
+                  } else {
+                    statusBadge = (
+                      <span className="shrink-0 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+                        ✈ En vuelo
+                      </span>
+                    );
+                  }
+                }
+
+                return (
+                  <div key={`${tramo.vueloId}-${i}`} className="px-2.5 py-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold text-slate-100">Vuelo #{tramo.vueloId}</p>
+                          {statusBadge}
+                        </div>
+                        <p className="mt-0.5 text-[10px] font-mono text-slate-400">
+                          {tramo.origen} <span className="text-slate-600">-&gt;</span> {tramo.destino}
+                        </p>
+                      </div>
+                      <span className="shrink-0 bg-slate-900/80 text-[10px] px-2 py-0.5 rounded text-slate-300">
+                        {tramo.capacidad} cap.
+                      </span>
                     </div>
-                    <span className="shrink-0 bg-slate-900/80 text-[10px] px-2 py-0.5 rounded text-slate-300">
-                      {tramo.capacidad} cap.
-                    </span>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="rounded bg-slate-900/40 px-2 py-1">
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">Sale (GMT)</p>
+                        <p className="text-[11px] font-mono text-slate-300">{formatGmtMinute(tramo.salidaMinutosGMT)}</p>
+                        <p className="text-[9px] text-blue-300 font-semibold">{getFechaLocalDate(fechaInicioRaw || '', tramo.diaOffset)}</p>
+                      </div>
+                      <div className="rounded bg-slate-900/40 px-2 py-1">
+                        <p className="text-[9px] text-slate-500 uppercase tracking-widest">Llega (GMT)</p>
+                        <p className="text-[11px] font-mono text-slate-300">{formatGmtMinute(tramo.llegadaMinutosGMT)}</p>
+                        <p className="text-[9px] text-blue-300 font-semibold">
+                          {getFechaLocalDate(fechaInicioRaw || '', tramo.diaOffset + (tramo.llegadaMinutosGMT < tramo.salidaMinutosGMT ? 1 : 0))}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded bg-slate-900/40 px-2 py-1">
-                      <p className="text-[9px] text-slate-500 uppercase tracking-widest">Sale (GMT)</p>
-                      <p className="text-[11px] font-mono text-slate-300">{formatGmtMinute(tramo.salidaMinutosGMT)}</p>
-                      <p className="text-[9px] text-blue-300 font-semibold">{getFechaLocalDate(fechaInicioRaw || '', tramo.diaOffset)}</p>
-                    </div>
-                    <div className="rounded bg-slate-900/40 px-2 py-1">
-                      <p className="text-[9px] text-slate-500 uppercase tracking-widest">Llega (GMT)</p>
-                      <p className="text-[11px] font-mono text-slate-300">{formatGmtMinute(tramo.llegadaMinutosGMT)}</p>
-                      <p className="text-[9px] text-blue-300 font-semibold">
-                        {getFechaLocalDate(fechaInicioRaw || '', tramo.diaOffset + (tramo.llegadaMinutosGMT < tramo.salidaMinutosGMT ? 1 : 0))}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

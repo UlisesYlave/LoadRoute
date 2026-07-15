@@ -575,6 +575,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             cancelacionesPorDia={cancelacionesPorDia}
             filtroSemaforoVuelos={filtroSemaforoVuelos}
             filtroSemaforoAero={filtroSemaforoAero}
+            selectedEnvio={envioModal}
           />
 
 
@@ -693,8 +694,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         offsetRight={!!vueloModal || !!aeroModal || activeTab !== null}
         fechaInicioRaw={fechaInicioRaw}
         onClose={() => setEnvioModal(null)}
-        // 👇 PASAMOS LA NUEVA PROP AL MODAL DE DETALLE DEL PEDIDO
         onEnfocarPedido={handleEnfocarPedido}
+        simTiempoMinutos={simTotalVisual}
       />
       <ModalAeropuerto
         aeropuerto={aeroModal}

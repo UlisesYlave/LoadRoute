@@ -43,7 +43,9 @@ interface MapaRutasProps {
   cancelacionesPorDia?: number[][];
   filtroSemaforoVuelos?: 'todos' | 'verde' | 'ambar' | 'rojo';
   filtroSemaforoAero?: 'todos' | 'verde' | 'ambar' | 'rojo';
+  selectedEnvio?: RutaMuestra | null;
 }
+
 
 // Color fijo para aeropuertos: azul del header en operación normal, rojo en colapso
 const AIRPORT_BLUE = '#3b82f6';
@@ -99,32 +101,39 @@ const AjustadorMapa: React.FC<{ aeropuertos: AeropuertoDTO[]; maxZoom: number }>
 const planeIconCache: Record<string, L.DivIcon> = {};
 const airportIconCache: Record<string, L.DivIcon> = {};
 
-function getIconoAvionCached(color: string, angle: number): L.DivIcon {
+function getIconoAvion(color: string, angle: number, isFocused = false): L.DivIcon {
+  if (isFocused) {
+    return crearIconoAvion(color, angle, true);
+  }
   const roundedAngle = Math.round(angle / 15) * 15;
   const key = `${color}-${roundedAngle}`;
   if (!planeIconCache[key]) {
-    planeIconCache[key] = crearIconoAvion(color, roundedAngle);
+    planeIconCache[key] = crearIconoAvion(color, roundedAngle, false);
   }
   return planeIconCache[key];
 }
 
-function getIconoAeropuertoCached(
+function getIconoAeropuerto(
   cargaActual: number,
   capacidadMax: number,
   umbralVerde: number,
   umbralAmbar: number,
-  collapsed: boolean
+  collapsed: boolean,
+  isFocused = false
 ): L.DivIcon {
+  if (isFocused) {
+    return crearIconoAeropuerto(cargaActual, capacidadMax, umbralVerde, umbralAmbar, collapsed, true);
+  }
   const p = capacidadMax > 0 ? Math.round((cargaActual / capacidadMax) * 100) : 0;
   const key = `${p}-${capacidadMax}-${umbralVerde}-${umbralAmbar}-${collapsed}`;
   if (!airportIconCache[key]) {
-    airportIconCache[key] = crearIconoAeropuerto(cargaActual, capacidadMax, umbralVerde, umbralAmbar, collapsed);
+    airportIconCache[key] = crearIconoAeropuerto(cargaActual, capacidadMax, umbralVerde, umbralAmbar, collapsed, false);
   }
   return airportIconCache[key];
 }
 
 // Iconos de avión según semáforo
-function crearIconoAvion(color: string, angle: number): L.DivIcon {
+function crearIconoAvion(color: string, angle: number, isFocused = false): L.DivIcon {
   const svg = encodeURIComponent(`
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
       <path fill="${color}" stroke="white" stroke-width="1" stroke-linejoin="round"
@@ -132,8 +141,10 @@ function crearIconoAvion(color: string, angle: number): L.DivIcon {
     </svg>
   `);
 
+  const focusClass = isFocused ? ' focused-marker-pulse' : '';
+
   return L.divIcon({
-    className: 'loadroute-plane-marker',
+    className: `loadroute-plane-marker${focusClass}`,
     html: `
       <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
         <div style="width: 20px; height: 20px; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)); transform: rotate(${angle}deg); transform-origin: center; will-change: transform; background: url('data:image/svg+xml,${svg}') center/contain no-repeat;"></div>
@@ -149,7 +160,8 @@ function crearIconoAeropuerto(
   capacidadMax: number,
   umbralVerde: number,
   umbralAmbar: number,
-  collapsed: boolean
+  collapsed: boolean,
+  isFocused = false
 ): L.DivIcon {
   let color = '#065f46';
   if (capacidadMax > 0) {
@@ -173,10 +185,12 @@ function crearIconoAeropuerto(
     </svg>
   `);
 
-  const extraClass = collapsed ? ' airport-collapse-pulse' : '';
+  const collapsedClass = collapsed ? ' airport-collapse-pulse' : '';
+  const focusClass = isFocused ? ' focused-marker-pulse' : '';
+  const extraClass = collapsedClass || focusClass ? ` ${collapsedClass}${focusClass}`.trim() : '';
 
   return L.divIcon({
-    className: `loadroute-airport-marker${extraClass}`,
+    className: `loadroute-airport-marker ${extraClass}`.trim(),
     html: `<div style="width:100%;height:100%;background:url('data:image/svg+xml,${svg}') center/contain no-repeat; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5)); z-index: 5000;"></div>`,
     iconSize: [24, 24],
     iconAnchor: [12, 12]
@@ -189,15 +203,17 @@ const AirportMarker: React.FC<{
   umbralVerde: number;
   umbralAmbar: number;
   onSelectAeropuerto: (aeropuerto: AeropuertoDTO) => void;
+  isFocused?: boolean;
 }> = React.memo(function AirportMarker({
   aeropuerto,
   cargaActual,
   umbralVerde,
   umbralAmbar,
   onSelectAeropuerto,
+  isFocused = false,
 }) {
   const collapsed = isAirportCollapsed(cargaActual, aeropuerto.capacidadMax);
-  const icon = getIconoAeropuertoCached(cargaActual, aeropuerto.capacidadMax, umbralVerde, umbralAmbar, collapsed);
+  const icon = getIconoAeropuerto(cargaActual, aeropuerto.capacidadMax, umbralVerde, umbralAmbar, collapsed, isFocused);
   const eventHandlers = useMemo(() => ({ click: () => onSelectAeropuerto(aeropuerto) }), [aeropuerto, onSelectAeropuerto]);
 
   // Fondo dinámico del badge de carga para el Aeropuerto
@@ -245,6 +261,7 @@ const PlaneMarker: React.FC<{
   umbralAmbar: number;
   prefix: string;
   onSelectVuelo: (vuelo: any) => void;
+  isFocused?: boolean;
 }> = React.memo(function PlaneMarker({
   tramo,
   carga,
@@ -253,10 +270,11 @@ const PlaneMarker: React.FC<{
   umbralAmbar,
   prefix,
   onSelectVuelo,
+  isFocused = false,
 }) {
   const { lat, lon, angle } = getInterpolatedPosition(tramo, simTiempoMinutos);
   const colorHex = getPlaneColor(carga, tramo.capacidad, umbralVerde, umbralAmbar);
-  const icon = getIconoAvionCached(colorHex, angle);
+  const icon = getIconoAvion(colorHex, angle, isFocused);
   const eventHandlers = useMemo(() => ({ click: () => onSelectVuelo(tramo) }), [onSelectVuelo, tramo]);
 
   // Fondo dinámico para el badge de carga
@@ -315,6 +333,7 @@ export default function MapaRutas({
   cancelacionesPorDia,
   filtroSemaforoVuelos = 'todos',
   filtroSemaforoAero = 'todos',
+  selectedEnvio,
 }: MapaRutasProps) {
   const aeropuertos = resultado?.aeropuertos || [];
   const resultadoSA = resultado?.resultadoSA;
@@ -470,6 +489,110 @@ export default function MapaRutas({
           />
         )}
 
+        {selectedEnvio && selectedEnvio.tramos && selectedEnvio.tramos.map((tramo, index) => {
+          // Validar existencia de coordenadas válidas para evitar caídas en Leaflet
+          const hasCoords = tramo &&
+                            typeof tramo.origenLat === 'number' && !isNaN(tramo.origenLat) &&
+                            typeof tramo.origenLon === 'number' && !isNaN(tramo.origenLon) &&
+                            typeof tramo.destinoLat === 'number' && !isNaN(tramo.destinoLat) &&
+                            typeof tramo.destinoLon === 'number' && !isNaN(tramo.destinoLon);
+          if (!hasCoords) return null;
+
+          const simTimeVal = typeof simTiempoMinutos === 'number' && !isNaN(simTiempoMinutos) ? simTiempoMinutos : 0;
+          const salidaTotal = (tramo.diaOffset ?? 0) * 1440 + tramo.salidaMinutosGMT;
+          let llegadaTotal = (tramo.diaOffset ?? 0) * 1440 + tramo.llegadaMinutosGMT;
+          if (tramo.llegadaMinutosGMT < tramo.salidaMinutosGMT) {
+            llegadaTotal += 1440;
+          }
+
+          const hasPassed = simTimeVal >= llegadaTotal;
+          const isPending = simTimeVal < salidaTotal;
+
+          const keyPrefix = `envio-route-${selectedEnvio.envioId}-${tramo.vueloId}-${index}`;
+
+          if (hasPassed) {
+            // Completado: Verde esmeralda continuo
+            const positions = getCurvaOrtodromicaCached(tramo.origenLat, tramo.origenLon, tramo.destinoLat, tramo.destinoLon);
+            return (
+              <Polyline
+                key={`${keyPrefix}-passed`}
+                positions={positions}
+                color="#10b981"
+                weight={5}
+                opacity={0.9}
+              >
+                <Tooltip direction="top">
+                  <div className="font-sans text-xs p-1">
+                    <span className="font-bold text-emerald-500">✓ Completado</span><br />
+                    Vuelo #{tramo.vueloId}: {tramo.origen} → {tramo.destino}
+                  </div>
+                </Tooltip>
+              </Polyline>
+            );
+          } else if (isPending) {
+            // Pendiente: Gris pizarra punteado
+            const positions = getCurvaOrtodromicaCached(tramo.origenLat, tramo.origenLon, tramo.destinoLat, tramo.destinoLon);
+            return (
+              <Polyline
+                key={`${keyPrefix}-pending`}
+                positions={positions}
+                color="#94a3b8"
+                weight={4}
+                opacity={0.7}
+                dashArray="8, 6"
+              >
+                <Tooltip direction="top">
+                  <div className="font-sans text-xs p-1">
+                    <span className="font-bold text-slate-400">⌚ Pendiente (Escala/Futuro)</span><br />
+                    Vuelo #{tramo.vueloId}: {tramo.origen} → {tramo.destino}
+                  </div>
+                </Tooltip>
+              </Polyline>
+            );
+          } else {
+            // En pleno vuelo: Dividido en verde y gris en base a posición actual
+            const { lat, lon } = getInterpolatedPosition(tramo, simTimeVal);
+            
+            // Generar curvas para las dos mitades
+            const completedPositions = generarCurvaOrtodromica(tramo.origenLat, tramo.origenLon, lat, lon, 25);
+            const pendingPositions = generarCurvaOrtodromica(lat, lon, tramo.destinoLat, tramo.destinoLon, 25);
+
+            // Devolver un array de Polylines para evitar el uso de React.Fragment que puede dar problemas con Leaflet
+            return [
+              <Polyline
+                key={`${keyPrefix}-current-passed`}
+                positions={completedPositions}
+                color="#10b981"
+                weight={5}
+                opacity={0.9}
+              >
+                <Tooltip direction="top">
+                  <div className="font-sans text-xs p-1">
+                    <span className="font-bold text-cyan-400">✈ En Pleno Vuelo (Ya recorrido)</span><br />
+                    Vuelo #{tramo.vueloId}: {tramo.origen} → {tramo.destino}
+                  </div>
+                </Tooltip>
+              </Polyline>,
+              <Polyline
+                key={`${keyPrefix}-current-pending`}
+                positions={pendingPositions}
+                color="#94a3b8"
+                weight={4}
+                opacity={0.7}
+                dashArray="8, 6"
+              >
+                <Tooltip direction="top">
+                  <div className="font-sans text-xs p-1">
+                    <span className="font-bold text-cyan-400">✈ En Pleno Vuelo (Por recorrer)</span><br />
+                    Vuelo #{tramo.vueloId}: {tramo.origen} → {tramo.destino}
+                  </div>
+                </Tooltip>
+              </Polyline>
+            ];
+          }
+        })}
+
+
         {vuelosCanceladosHoy.map(vuelo => {
           if (!vuelo) return null;
           const origen = aeropuertos.find(a => a.codigo === vuelo.origen);
@@ -511,6 +634,7 @@ export default function MapaRutas({
             umbralVerde={umbralVerde}
             umbralAmbar={umbralAmbar}
             onSelectAeropuerto={onSelectAeropuerto}
+            isFocused={!!(aeropuertoAEnfocar && aeropuertoAEnfocar.codigo === a.codigo)}
           />
         ))}
 
@@ -535,6 +659,7 @@ export default function MapaRutas({
             umbralAmbar={umbralAmbar}
             prefix="sa"
             onSelectVuelo={onSelectVuelo}
+            isFocused={!!(vueloAEnfocar && String(vueloAEnfocar.vueloId) === String(t.vueloId) && vueloAEnfocar.diaOffset === t.diaOffset)}
           />
         ))}
 
@@ -551,6 +676,7 @@ export default function MapaRutas({
             umbralAmbar={umbralAmbar}
             prefix="sa-empty"
             onSelectVuelo={onSelectVuelo}
+            isFocused={!!(vueloAEnfocar && String(vueloAEnfocar.vueloId) === String(t.vueloId) && vueloAEnfocar.diaOffset === t.diaOffset)}
           />
         ))}
 
@@ -588,6 +714,25 @@ export default function MapaRutas({
         .loadroute-airport-marker {
           filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45));
           z-index: 5000 !important;
+        }
+
+        @keyframes markerFocusPulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.9);
+          }
+          70% {
+            box-shadow: 0 0 0 18px rgba(6, 182, 212, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);
+          }
+        }
+        .focused-marker-pulse {
+          box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.9);
+          animation: markerFocusPulse 1.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+          border-radius: 9999px;
+          overflow: visible !important;
+          z-index: 9999 !important;
         }
       `}</style>
     </div>
