@@ -345,7 +345,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         
         setAeropuertoAEnfocar(null);
         setVueloAEnfocar(vueloASeleccionar);
-        handleSelectVuelo(vueloASeleccionar);
+        // handleSelectVuelo(vueloASeleccionar); // Keep shipment modal open & route visible
       }
     } else if (estado === 'Entregado' || estado === 'Esperando' || estado === 'Esperando escala') {
       let codigoAero = pedido.origen;
@@ -378,7 +378,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       if (aeropuertoObjeto) {
         setVueloAEnfocar(null);
         setAeropuertoAEnfocar(aeropuertoObjeto);
-        handleSelectAeropuerto(aeropuertoObjeto);
+        // handleSelectAeropuerto(aeropuertoObjeto); // Keep shipment modal open & route visible
       }
     }
   };
@@ -693,7 +693,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         envio={envioModal}
         offsetRight={!!vueloModal || !!aeroModal || activeTab !== null}
         fechaInicioRaw={fechaInicioRaw}
-        onClose={() => setEnvioModal(null)}
+        onClose={() => {
+          setEnvioModal(null);
+          setVueloAEnfocar(null);
+          setAeropuertoAEnfocar(null);
+        }}
         onEnfocarPedido={handleEnfocarPedido}
         simTiempoMinutos={simTotalVisual}
       />
