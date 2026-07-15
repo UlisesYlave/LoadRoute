@@ -73,6 +73,8 @@ export default function SidebarVuelos({
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize,    setPageSize]    = useState(10);
   const [filtroEstado, setFiltroEstado] = useState<'todos' | 'cancelados' | 'operativos'>('todos');
+  const [filtroOrigen, setFiltroOrigen] = useState<string>('todos');
+  const [filtroDestino, setFiltroDestino] = useState<string>('todos');
 
   const getFechaGmtLabel = useCallback((index: number) => {
     if (!fechaInicioRaw || fechaInicioRaw.length < 8) return `Día ${index + 1}`;
@@ -129,7 +131,7 @@ export default function SidebarVuelos({
   // Resetear página cuando cambian los filtros
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sortKey, selectedDia, filtroEstado, filtroSemaforo]);
+  }, [searchTerm, sortKey, selectedDia, filtroEstado, filtroSemaforo, filtroOrigen, filtroDestino]);
 
   // Ajustar cantidad de elementos por página según la altura de la pantalla
   useEffect(() => {
@@ -165,8 +167,21 @@ export default function SidebarVuelos({
     [rutasActivas, selectedDia]
   );
 
+  const optionsAeropuertos = useMemo(() => {
+    if (!aeropuertos) return [];
+    return aeropuertos
+      .map(a => ({
+        codigo: a.codigo,
+        label: `${a.pais.toUpperCase()}-${a.codigo.toUpperCase()}`
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [aeropuertos]);
+
   const filteredBySearch = useMemo(() => {
     return vuelos.filter(v => {
+      if (filtroOrigen !== 'todos' && v.origen !== filtroOrigen) return false;
+      if (filtroDestino !== 'todos' && v.destino !== filtroDestino) return false;
+
       if (!searchTerm) return true;
       const q = searchTerm.toLowerCase();
       return (
@@ -175,7 +190,7 @@ export default function SidebarVuelos({
         v.destino.toLowerCase().includes(q)
       );
     });
-  }, [vuelos, searchTerm]);
+  }, [vuelos, searchTerm, filtroOrigen, filtroDestino]);
 
   const totalCancelados = useMemo(() => {
     return filteredBySearch.filter(v => cancelacionesActivas.has(v.vueloId)).length;
@@ -284,6 +299,37 @@ export default function SidebarVuelos({
                        text-xs text-slate-200 placeholder-slate-500
                        focus:outline-none focus:border-orange-500/50 focus:ring-1 focus:ring-orange-500/20"
           />
+        </div>
+
+        {/* Comboboxes de Origen y Destino */}
+        <div className="grid grid-cols-2 gap-2">
+          <select
+            value={filtroOrigen}
+            onChange={e => setFiltroOrigen(e.target.value)}
+            className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                       text-xs text-slate-300 outline-none focus:border-orange-500/50 cursor-pointer"
+          >
+            <option value="todos">Cualquier origen</option>
+            {optionsAeropuertos.map(opt => (
+              <option key={opt.codigo} value={opt.codigo}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filtroDestino}
+            onChange={e => setFiltroDestino(e.target.value)}
+            className="w-full bg-slate-800/60 border border-slate-700/60 rounded-lg px-2 py-1.5
+                       text-xs text-slate-300 outline-none focus:border-orange-500/50 cursor-pointer"
+          >
+            <option value="todos">Cualquier destino</option>
+            {optionsAeropuertos.map(opt => (
+              <option key={opt.codigo} value={opt.codigo}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Ordenar */}
