@@ -15,9 +15,10 @@ interface SidebarInfoProps {
   umbralAmbar?: number;
   filtroSemaforo?: 'todos' | 'verde' | 'ambar' | 'rojo';
   onChangeFiltroSemaforo?: (f: 'todos' | 'verde' | 'ambar' | 'rojo') => void;
+  vuelos?: any[];
 }
 
-type OrdenAero = 'codigo' | 'ciudad' | 'ocupacion_desc' | 'ocupacion_asc';
+type OrdenAero = 'codigo' | 'ciudad' | 'ocupacion_desc' | 'ocupacion_asc' | 'proximo_salir' | 'proximo_llegar';
 
 const getEnvioStatus = (e: RutaMuestra, simTime: number) => {
   if (!e.tramos || e.tramos.length === 0) {
@@ -122,6 +123,7 @@ function SidebarInfo({
   umbralAmbar = 80,
   filtroSemaforo = 'todos',
   onChangeFiltroSemaforo,
+  vuelos = [],
 }: SidebarInfoProps) {
   const [searchEnvios,     setSearchEnvios]     = useState('');
   const [searchAero,       setSearchAero]       = useState('');
@@ -256,6 +258,42 @@ function SidebarInfo({
     return [...result].sort((a, b) => {
       if (ordenAero === 'codigo') return a.codigo.localeCompare(b.codigo);
       if (ordenAero === 'ciudad') return a.ciudad.localeCompare(b.ciudad);
+      
+      if (ordenAero === 'proximo_salir' || ordenAero === 'proximo_llegar') {
+        const simTime = simTiempoMinutos || 0;
+        const isDeparture = ordenAero === 'proximo_salir';
+        
+        const getNextTime = (airportCode: string) => {
+          if (!vuelos || vuelos.length === 0) return Infinity;
+          let minDiff = Infinity;
+          
+          for (const v of vuelos) {
+            if (isDeparture && v.origen !== airportCode) continue;
+            if (!isDeparture && v.destino !== airportCode) continue;
+            
+            if (isDeparture) {
+              let departure = Math.floor(simTime / 1440) * 1440 + v.salidaMinutosGMT;
+              if (departure < simTime) departure += 1440;
+              const diff = departure - simTime;
+              if (diff < minDiff) minDiff = diff;
+            } else {
+              let duration = v.llegadaMinutosGMT - v.salidaMinutosGMT;
+              if (duration < 0) duration += 1440;
+              let departure = Math.floor(simTime / 1440) * 1440 + v.salidaMinutosGMT;
+              if (departure + duration < simTime) departure += 1440;
+              const exactArrival = departure + duration;
+              const diff = exactArrival - simTime;
+              if (diff >= 0 && diff < minDiff) minDiff = diff;
+            }
+          }
+          return minDiff;
+        };
+
+        const diffA = getNextTime(a.codigo);
+        const diffB = getNextTime(b.codigo);
+        return diffA - diffB;
+      }
+
       // Ordenar por ocupación
       const cargaA = cargasAeropuertoOverride?.[a.codigo]
         ?? calcularCargaAeropuertoActual(a.codigo, envios, simTiempoMinutos);
@@ -265,7 +303,7 @@ function SidebarInfo({
       const pctB = b.capacidadMax > 0 ? cargaB / b.capacidadMax : 0;
       return ordenAero === 'ocupacion_desc' ? pctB - pctA : pctA - pctB;
     });
-  }, [aeropuertos, searchAero, continenteFilter, ordenAero, cargasAeropuertoOverride, envios, simTiempoMinutos, filtroSemaforo, umbralVerde, umbralAmbar]);
+  }, [aeropuertos, searchAero, continenteFilter, ordenAero, cargasAeropuertoOverride, envios, simTiempoMinutos, filtroSemaforo, umbralVerde, umbralAmbar, vuelos]);
 
   // Resetear páginas cuando cambian búsquedas o filtros
   useEffect(() => {
@@ -583,6 +621,8 @@ function SidebarInfo({
             <option value="ciudad">Ordenar: Ciudad (A–Z)</option>
             <option value="ocupacion_desc">↓ Ocupación (mayor primero)</option>
             <option value="ocupacion_asc">↑ Ocupación (menor primero)</option>
+            <option value="proximo_salir">Ordenar: Próximo a salir</option>
+            <option value="proximo_llegar">Ordenar: Próximo a llegar</option>
           </select>
 
           {/* Filtro Semáforo */}

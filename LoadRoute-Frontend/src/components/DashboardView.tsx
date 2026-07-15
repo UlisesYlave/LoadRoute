@@ -604,6 +604,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <SidebarInfo
                     envios={rutasActivas}
                     aeropuertos={resultado.aeropuertos}
+                    vuelos={resultado?.vuelosMaestros || []}
                     activeTab={activeTab}
                     simTiempoMinutos={simTotalVisual}
                     cargasAeropuertoOverride={cargasAeropuertoFinales}
