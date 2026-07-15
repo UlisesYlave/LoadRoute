@@ -21,17 +21,23 @@ public class SolucionEstado {
     private final Map<String, List<Vuelo>> asignaciones;
     private final Map<String, Envio> envios;
     private final Set<String> idsNoAceptados = new HashSet<>();
+    private final int tiempoEsperaEscala;
+    private final int tiempoEsperaDestino;
 
-    public SolucionEstado(Map<String, Envio> envios) {
+    public SolucionEstado(Map<String, Envio> envios, int tiempoEsperaEscala, int tiempoEsperaDestino) {
         this.envios       = envios;
+        this.tiempoEsperaEscala = tiempoEsperaEscala;
+        this.tiempoEsperaDestino = tiempoEsperaDestino;
         this.asignaciones = new LinkedHashMap<>();
         for (String id : envios.keySet()) {
             asignaciones.put(id, new ArrayList<>());
         }
     }
 
-    private SolucionEstado(Map<String, Envio> envios, Map<String, List<Vuelo>> asignaciones) {
+    private SolucionEstado(Map<String, Envio> envios, Map<String, List<Vuelo>> asignaciones, int tiempoEsperaEscala, int tiempoEsperaDestino) {
         this.envios       = envios;
+        this.tiempoEsperaEscala = tiempoEsperaEscala;
+        this.tiempoEsperaDestino = tiempoEsperaDestino;
         this.asignaciones = new LinkedHashMap<>();
         for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
             this.asignaciones.put(e.getKey(), new ArrayList<>(e.getValue()));
@@ -110,7 +116,7 @@ public class SolucionEstado {
             
             // 1. Origen: Desde recepción hasta salida del primer vuelo
             Vuelo v1 = ruta.get(0);
-            LocalDateTime salida1 = v1.getProximaSalidaGMT(t, 30);
+            LocalDateTime salida1 = v1.getProximaSalidaGMT(t, tiempoEsperaEscala);
             
             String codOrig = envio.getOrigen().getCodigo();
             eventosPorAero.computeIfAbsent(codOrig, k -> new ArrayList<>())
@@ -124,7 +130,7 @@ public class SolucionEstado {
             // 2. Conexiones intermedias
             for (int i = 1; i < ruta.size(); i++) {
                 Vuelo vk = ruta.get(i);
-                LocalDateTime salidaK = vk.getProximaSalidaGMT(t, 30);
+                LocalDateTime salidaK = vk.getProximaSalidaGMT(t, tiempoEsperaEscala);
                 
                 String codAero = vk.getOrigen().getCodigo();
                 eventosPorAero.computeIfAbsent(codAero, k -> new ArrayList<>())
@@ -136,7 +142,18 @@ public class SolucionEstado {
                 t = vk.getLlegadaGMT(salidaK);
             }
 
-            // 3. Destino final: No se acumula (según requerimiento)
+            // 3. Destino final: Acumula durante tiempoEsperaDestino
+            if (tiempoEsperaDestino > 0 && !ruta.isEmpty()) {
+                Vuelo vUltimo = ruta.get(ruta.size() - 1);
+                LocalDateTime llegadaFinal = vUltimo.getLlegadaGMT(vUltimo.getProximaSalidaGMT(t, tiempoEsperaEscala)); // Actually t is already llegadaGMT of last connection
+                // Wait, t is already the arrival time of the last connection! So we just use t
+                LocalDateTime finLlegadaFinal = t.plusMinutes(tiempoEsperaDestino);
+                String codDestino = vUltimo.getDestino().getCodigo();
+                eventosPorAero.computeIfAbsent(codDestino, k -> new ArrayList<>())
+                              .add(new OccupancyEvent(t, maletas));
+                eventosPorAero.computeIfAbsent(codDestino, k -> new ArrayList<>())
+                              .add(new OccupancyEvent(finLlegadaFinal, -maletas));
+            }
 
             // Cálculo de tránsito y SLA
             long transitoHoras = ChronoUnit.HOURS.between(recepcionGMT, t);
@@ -234,15 +251,22 @@ public class SolucionEstado {
         LocalDateTime t = envio.getRecepcionGMT();
 
         Vuelo primero = ruta.get(0);
-        LocalDateTime salida = primero.getProximaSalidaGMT(t, 30);
+        LocalDateTime salida = primero.getProximaSalidaGMT(t, tiempoEsperaEscala);
         agregarIntervalo(intervalos, envio.getOrigen(), t, salida, maletas);
         t = primero.getLlegadaGMT(salida);
 
         for (int i = 1; i < ruta.size(); i++) {
             Vuelo vuelo = ruta.get(i);
-            salida = vuelo.getProximaSalidaGMT(t, 30);
+            salida = vuelo.getProximaSalidaGMT(t, tiempoEsperaEscala);
             agregarIntervalo(intervalos, vuelo.getOrigen(), t, salida, maletas);
             t = vuelo.getLlegadaGMT(salida);
+        }
+
+        // Destino final
+        if (tiempoEsperaDestino > 0) {
+            Vuelo vUltimo = ruta.get(ruta.size() - 1);
+            LocalDateTime fin = t.plusMinutes(tiempoEsperaDestino);
+            agregarIntervalo(intervalos, vUltimo.getDestino(), t, fin, maletas);
         }
 
         return intervalos;
@@ -340,7 +364,7 @@ public class SolucionEstado {
     // ── Clonado ───────────────────────────────────────────────────────────────
 
     public SolucionEstado clonar() {
-        return new SolucionEstado(envios, asignaciones);
+        return new SolucionEstado(envios, asignaciones, tiempoEsperaEscala, tiempoEsperaDestino);
     }
 
     // ── Accesores ─────────────────────────────────────────────────────────────

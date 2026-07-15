@@ -55,6 +55,11 @@ public class SimulatedAnnealing {
     private LocalDateTime tiempoPlanificacion = null;
     private String periodoString = null;
     private Set<String> vuelosCanceladosKeys = Collections.emptySet();
+    private int tiempoEsperaEscala = 10;
+    private int tiempoEsperaDestino = 15;
+
+    public SimulatedAnnealing setTiempoEsperaEscala(int t) { this.tiempoEsperaEscala = t; return this; }
+    public SimulatedAnnealing setTiempoEsperaDestino(int t) { this.tiempoEsperaDestino = t; return this; }
 
     public SimulatedAnnealing setTiempoPlanificacion(LocalDateTime t) {
         this.tiempoPlanificacion = t;
@@ -478,7 +483,7 @@ public class SimulatedAnnealing {
         }
 
         SolucionEstado exportar() {
-            SolucionEstado sol = new SolucionEstado(envios);
+            SolucionEstado sol = new SolucionEstado(envios, tiempoEsperaEscala, tiempoEsperaDestino);
             for (Map.Entry<String, List<Vuelo>> e : asignaciones.entrySet()) {
                 if (!e.getValue().isEmpty())
                     sol.asignarRuta(e.getKey(), e.getValue());
@@ -573,12 +578,12 @@ public class SimulatedAnnealing {
 
     // ── Utilidades ────────────────────────────────────────────────────────────
 
-    static long calcularTransitoHoras(List<Vuelo> ruta, Envio envio) {
+    long calcularTransitoHoras(List<Vuelo> ruta, Envio envio) {
         if (ruta.isEmpty())
             return envio.getSlaHoras() * 10L;
         LocalDateTime t = envio.getRecepcionGMT();
         for (Vuelo v : ruta) {
-            t = v.getLlegadaGMT(v.getProximaSalidaGMT(t, RedLogistica.BUFFER_CONEXION));
+            t = v.getLlegadaGMT(v.getProximaSalidaGMT(t, tiempoEsperaEscala));
         }
         return ChronoUnit.HOURS.between(envio.getRecepcionGMT(), t);
     }
@@ -587,7 +592,7 @@ public class SimulatedAnnealing {
         Queue<Envio> cola = new LinkedList<>(envios.values());
         envios.clear();
         
-        SolucionEstado sol = new SolucionEstado(envios);
+        SolucionEstado sol = new SolucionEstado(envios, tiempoEsperaEscala, tiempoEsperaDestino);
         int splitCount = 1;
 
         while (!cola.isEmpty()) {

@@ -16,6 +16,7 @@ export interface ColapsoDatos {
   momentoSimulacion: number;      // minutos totales en la simulación
   fechaInicioRaw: string;          // para formatear la fecha
   tipoColapso: 'aeropuerto' | 'avion' | 'sla' | 'general';
+  escenario?: number;
 }
 
 interface ModalColapsoDatosProps {
@@ -104,7 +105,7 @@ export default function ModalColapso({ colapso, onClose }: ModalColapsoDatosProp
           <div className="min-w-0">
             <h3 className="text-base font-bold text-red-300 leading-tight">Colapso Detectado</h3>
             <p className="text-[11px] font-semibold text-red-400/70 tracking-wider">
-              Operación de Colapso — Escenario 3
+              {colapso.escenario === 1 ? 'Simulación de Periodo — Escenario 1' : 'Operación de Colapso — Escenario 3'}
             </p>
           </div>
         </div>

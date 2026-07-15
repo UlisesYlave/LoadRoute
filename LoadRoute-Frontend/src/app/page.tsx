@@ -137,6 +137,9 @@ function combineChunks(chunks: RutaResponse[] | undefined): RutaResponse | null 
     const lastChunk = chunks[chunks.length - 1];
     base.ultimoLoteInicio = lastChunk.loteInicio;
     base.ultimoLoteFin = lastChunk.loteFin;
+    if (base.resultadoSA && lastChunk.resultadoSA) {
+      base.resultadoSA.mensajeColapso = lastChunk.resultadoSA.mensajeColapso;
+    }
   }
 
   return base;
@@ -374,7 +377,7 @@ export default function Home() {
   // la función interna de MapaRutas).
   const detectarColapsoEnMinuto = useCallback(
     (minutoActual: number, res: RutaResponse): ColapsoDatos | null => {
-      if (!res || res.escenario !== 3) return null;
+      if (!res || (res.escenario !== 3 && res.escenario !== 1)) return null;
 
       const rutas = res.resultadoSA?.rutasMuestra || [];
       const aeropuertos = res.aeropuertos || [];
@@ -389,6 +392,7 @@ export default function Home() {
           momentoSimulacion: minutoActual,
           fechaInicioRaw: res.fechaInicio || '',
           tipoColapso: 'sla',
+          escenario: res.escenario,
         };
       }
 
@@ -404,6 +408,7 @@ export default function Home() {
             momentoSimulacion: minutoActual,
             fechaInicioRaw: res.fechaInicio || '',
             tipoColapso: 'aeropuerto',
+            escenario: res.escenario,
           };
         }
       }
@@ -433,19 +438,21 @@ export default function Home() {
               momentoSimulacion: minutoActual,
               fechaInicioRaw: res.fechaInicio || '',
               tipoColapso: 'avion',
+              escenario: res.escenario,
             };
           }
         }
       }
 
-      // 4. Verificar mensaje de colapso del backend
-      if (res.resultadoSA?.mensajeColapso) {
+      // 4. Verificar mensaje de colapso del backend (solo cuando llegamos al lote del colapso)
+      if (res.resultadoSA?.mensajeColapso && (!res.ultimoLoteInicio || minutoActual >= res.ultimoLoteInicio)) {
         return {
           razon: res.resultadoSA.mensajeColapso,
           lugar: 'Red de distribución',
           momentoSimulacion: minutoActual,
           fechaInicioRaw: res.fechaInicio || '',
           tipoColapso: 'general',
+          escenario: res.escenario,
         };
       }
 
@@ -454,9 +461,9 @@ export default function Home() {
     []
   );
 
-  // ── Monitoreo de colapso en Escenario 3 ──────────────────────────────────
+  // ── Monitoreo de colapso en Escenario 1 y 3 ──────────────────────────────────
   useEffect(() => {
-    if (!resultado || resultado.escenario !== 3 || !isPlaying) return;
+    if (!resultado || (resultado.escenario !== 3 && resultado.escenario !== 1) || !isPlaying) return;
     if (colapsoDetectadoRef.current) return;
 
     const colapso = detectarColapsoEnMinuto(simTotalMinutos, resultado);

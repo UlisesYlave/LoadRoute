@@ -84,6 +84,10 @@ public class RuteoAsyncJobService {
     public SimulacionJobDTO iniciar(int escenario,
                                     String fechaInicio,
                                     String fechaFin,
+                                    Integer tiempoEsperaEscala,
+                                    Integer tiempoEsperaDestino,
+                                    Integer sa,
+                                    Integer k,
                                     String sessionId) {
         cleanupExpiredJobs();
 
@@ -134,6 +138,7 @@ public class RuteoAsyncJobService {
             try {
                 RuteoAlgoritmoService.SimulacionIterator iterator = ruteoService.prepararIteradorRuteo(
                         null, null, null, escenario, fechaInicio, fechaFin,
+                        tiempoEsperaEscala, tiempoEsperaDestino, sa, k,
                         (progress, message) -> RuteoAsyncJobService.this.update(jobId, "RUNNING", progress, message)
                 );
 

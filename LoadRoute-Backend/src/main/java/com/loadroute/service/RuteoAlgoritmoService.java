@@ -79,39 +79,29 @@ public class RuteoAlgoritmoService {
     public static class ParametrosSimulacion {
         private final int sa;
         private final int k;
+        private final int tiempoEsperaEscala;
+        private final int tiempoEsperaDestino;
 
-        public ParametrosSimulacion(int sa, int k) {
+        public ParametrosSimulacion(int sa, int k, int tiempoEsperaEscala, int tiempoEsperaDestino) {
             this.sa = sa;
             this.k = k;
+            this.tiempoEsperaEscala = tiempoEsperaEscala;
+            this.tiempoEsperaDestino = tiempoEsperaDestino;
         }
 
-        public int getSa() {
-            return sa;
-        }
-
-        public int getK() {
-            return k;
-        }
-
-        public int getScMinutos() {
-            return sa * k;
-        }
+        public int getSa() { return sa; }
+        public int getK() { return k; }
+        public int getTiempoEsperaEscala() { return tiempoEsperaEscala; }
+        public int getTiempoEsperaDestino() { return tiempoEsperaDestino; }
+        public int getScMinutos() { return sa * k; }
     }
 
-    public static ParametrosSimulacion obtenerParametrosSimulacion(int escenario) {
-        if (escenario == 2) {
-            return new ParametrosSimulacion(1, 1);
-        }
-
-        if (escenario == 3) {
-            return new ParametrosSimulacion(1, 140);
-        }
-
-        if (escenario == 1) {
-            return new ParametrosSimulacion(1, 80);
-        }
-
-        return new ParametrosSimulacion(1, 80);
+    public static ParametrosSimulacion obtenerParametrosSimulacion(int escenario, Integer saParam, Integer kParam, Integer tEscala, Integer tDestino) {
+        int sa = (saParam != null) ? saParam : 1;
+        int k = (kParam != null) ? kParam : (escenario == 3 ? 140 : (escenario == 1 ? 80 : 1));
+        int escala = (tEscala != null) ? tEscala : 10;
+        int destino = (tDestino != null) ? tDestino : 15;
+        return new ParametrosSimulacion(sa, k, escala, destino);
     }
 
     private static final int MAX_RUTAS_MUESTRA = 10_000;
@@ -121,8 +111,12 @@ public class RuteoAlgoritmoService {
             List<MultipartFile> enviosFiles,
             int escenario,
             String fechaInicio,
-            String fechaFin) throws IOException {
-        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, null);
+            String fechaFin,
+            Integer tiempoEsperaEscala,
+            Integer tiempoEsperaDestino,
+            Integer sa,
+            Integer k) throws IOException {
+        return ejecutarRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio, fechaFin, tiempoEsperaEscala, tiempoEsperaDestino, sa, k, null);
     }
 
     public List<RutaResponseDTO> ejecutarRuteo(InputStream aeropuertosIS,
@@ -131,9 +125,13 @@ public class RuteoAlgoritmoService {
             int escenario,
             String fechaInicio,
             String fechaFin,
+            Integer tiempoEsperaEscala,
+            Integer tiempoEsperaDestino,
+            Integer sa,
+            Integer k,
             ProgressReporter progress) throws IOException {
         SimulacionIterator iter = prepararIteradorRuteo(aeropuertosIS, vuelosIS, enviosFiles, escenario, fechaInicio,
-                fechaFin, progress);
+                fechaFin, tiempoEsperaEscala, tiempoEsperaDestino, sa, k, progress);
         List<RutaResponseDTO> chunks = new ArrayList<>();
         while (iter.hasNext() && !iter.hasColapsado()) {
             chunks.add(iter.nextChunk());
@@ -147,6 +145,10 @@ public class RuteoAlgoritmoService {
             int escenario,
             String fechaInicio,
             String fechaFin,
+            Integer tiempoEsperaEscala,
+            Integer tiempoEsperaDestino,
+            Integer sa,
+            Integer k,
             ProgressReporter progress) throws IOException {
 
         report(progress, 8, "Cargando datos...");
@@ -194,10 +196,9 @@ public class RuteoAlgoritmoService {
             }
         }
 
-        RedLogistica red = new RedLogistica(aeropuertos.values(), vuelos);
+        ParametrosSimulacion paramsSim = obtenerParametrosSimulacion(escenario, sa, k, tiempoEsperaEscala, tiempoEsperaDestino);
+        RedLogistica red = new RedLogistica(aeropuertos.values(), vuelos, paramsSim.getTiempoEsperaEscala());
         report(progress, 35, "Red logistica construida.");
-
-        ParametrosSimulacion paramsSim = obtenerParametrosSimulacion(escenario);
 
         RutaResponseDTO response = new RutaResponseDTO();
         response.setEscenario(escenario);
@@ -214,7 +215,7 @@ public class RuteoAlgoritmoService {
 
         report(progress, 98, "Preparando iterador para la simulación...");
         return new SimulacionUnificadaIterator(enviosEnMemoria, aeropuertos, vuelos, response, progress, inicioReal,
-                finReal, scMinutos);
+                finReal, paramsSim);
     }
 
     private void report(ProgressReporter progress, int pct, String message) {
@@ -347,7 +348,7 @@ public class RuteoAlgoritmoService {
         private final LocalDateTime fechaInicioRango;
         private final LocalDateTime fechaFinRango;
         private final LocalDate fechaInicioRangoDia;
-        private final int scMinutos;
+        private final ParametrosSimulacion paramsSim;
         private final List<Vuelo> vuelosOriginales;
 
         private final Map<String, Envio> enviosEnMemoria;
@@ -365,17 +366,17 @@ public class RuteoAlgoritmoService {
 
         public SimulacionUnificadaIterator(Map<String, Envio> enviosEnMemoria, Map<String, Aeropuerto> aeropuertosMap,
                 List<Vuelo> vuelos, RutaResponseDTO baseResponse, ProgressReporter progress,
-                LocalDateTime fechaInicioRango, LocalDateTime fechaFinRango, int scMinutos) {
+                LocalDateTime fechaInicioRango, LocalDateTime fechaFinRango, ParametrosSimulacion paramsSim) {
             this.enviosEnMemoria = enviosEnMemoria;
             this.aeropuertosMap = aeropuertosMap;
             this.vuelosOriginales = vuelos;
-            this.redSA = new RedLogistica(aeropuertosMap.values(), clonarVuelos(vuelos));
+            this.redSA = new RedLogistica(aeropuertosMap.values(), vuelosOriginales, paramsSim.getTiempoEsperaEscala());
             this.baseResponse = baseResponse;
             this.progress = progress;
             this.fechaInicioRango = fechaInicioRango;
             this.fechaFinRango = fechaFinRango;
+            this.paramsSim = paramsSim;
             this.fechaInicioRangoDia = fechaInicioRango.toLocalDate();
-            this.scMinutos = scMinutos;
             this.currentLoteInicio = fechaInicioRango;
 
             if (fechaInicioRango != null && fechaFinRango != null) {
@@ -409,7 +410,7 @@ public class RuteoAlgoritmoService {
         public RutaResponseDTO nextChunk() {
             if (!hasNext())
                 return null;
-            LocalDateTime loteFin = currentLoteInicio.plusMinutes(scMinutos);
+            LocalDateTime loteFin = currentLoteInicio.plusMinutes(paramsSim.getScMinutos());
 
             // 1. Fetch cancellations from DB and map to Set<String>
             Set<String> vuelosCanceladosKeys;
@@ -441,7 +442,7 @@ public class RuteoAlgoritmoService {
                 LocalDateTime t = envio.getRecepcionGMT();
                 for (int i = 0; i < ruta.size(); i++) {
                     Vuelo v = ruta.get(i);
-                    LocalDateTime proximaSalida = v.getProximaSalidaGMT(t, RedLogistica.BUFFER_CONEXION);
+                    LocalDateTime proximaSalida = v.getProximaSalidaGMT(t, paramsSim.getTiempoEsperaEscala());
                     LocalDate fechaLocal = proximaSalida.plusHours(v.getOrigen().getGmt()).toLocalDate();
                     String key = v.getId() + ":" + fechaLocal.toString();
 
@@ -471,7 +472,7 @@ public class RuteoAlgoritmoService {
                 LocalDateTime llegadaAnterior = envio.getRecepcionGMT();
                 for (int i = 0; i < ruta.size(); i++) {
                     Vuelo v = ruta.get(i);
-                    LocalDateTime proximaSalida = v.getProximaSalidaGMT(t, RedLogistica.BUFFER_CONEXION);
+                    LocalDateTime proximaSalida = v.getProximaSalidaGMT(t, paramsSim.getTiempoEsperaEscala());
                     LocalDate fechaLocal = proximaSalida.plusHours(v.getOrigen().getGmt()).toLocalDate();
                     String key = v.getId() + ":" + fechaLocal.toString();
 
@@ -539,7 +540,9 @@ public class RuteoAlgoritmoService {
                     .setTemperaturaMinima(1.0)
                     .setTiempoPlanificacion(loteFin)
                     .setPeriodoString(formatoLote(currentLoteInicio, loteFin))
-                    .setVuelosCanceladosKeys(vuelosCanceladosKeys);
+                    .setVuelosCanceladosKeys(vuelosCanceladosKeys)
+                    .setTiempoEsperaEscala(paramsSim.getTiempoEsperaEscala())
+                    .setTiempoEsperaDestino(paramsSim.getTiempoEsperaDestino());
 
             int pct = 35;
             if (baseResponse.getEscenario() == 1) {
@@ -607,12 +610,14 @@ public class RuteoAlgoritmoService {
                     sa.getMejoraRelativa(), sa.getIteraciones(), msSA, solSA, pendientesSA,
                     currentCancelledIds, reservasSA, loteFin, fechaInicioRangoDia));
 
-            // AJUSTE: Solo colapsamos en Escenario 3 (El Escenario 1 continúa operando
-            // aunque haya varados)
-            if (!solSA.getEnviosSinRuta().isEmpty() && baseResponse.getEscenario() == 3) {
+            // AJUSTE: Colapsamos en Escenario 1 y 3 (según el último requerimiento del usuario)
+            boolean tieneVarados = !solSA.getEnviosSinRuta().isEmpty();
+            boolean tieneColapsadosCapacidad = chunk.getResultadoSA().getEnviosNoAceptados() > 0;
+            if ((tieneVarados || tieneColapsadosCapacidad) && (baseResponse.getEscenario() == 3 || baseResponse.getEscenario() == 1)) {
                 colapsado = true;
-                mensajeColapso = "Algoritmo colapso: " + solSA.getEnviosSinRuta().size()
-                        + " envios varados o SLA incumplido.";
+                int totalColapsados = solSA.getEnviosSinRuta().size() + chunk.getResultadoSA().getEnviosNoAceptados();
+                mensajeColapso = "Algoritmo colapso: " + totalColapsados
+                        + " envios varados o capacidad de aeropuerto superada.";
                 chunk.getResultadoSA().setMensajeColapso(mensajeColapso);
             }
 
@@ -664,6 +669,10 @@ public class RuteoAlgoritmoService {
             LocalDateTime tiempoPlanificacion,
             LocalDate fechaInicioRangoDia) {
         List<String> colapsados = sol.verificarCapacidadAeropuertos(reservasAeropuerto);
+        System.out.println("DEBUG: colapsados size = " + colapsados.size());
+        if (!colapsados.isEmpty()) {
+            System.out.println("DEBUG: Colapsados sample: " + colapsados.subList(0, Math.min(5, colapsados.size())));
+        }
         int noAceptados = colapsados.size();
 
         // Add collapsed IDs to sol.idsNoAceptados just for getEnviosSinRuta

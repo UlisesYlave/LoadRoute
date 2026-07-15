@@ -16,15 +16,15 @@ import java.util.*;
  */
 public class RedLogistica {
 
-    public static final int TIEMPO_ESPERA_ESCALA = 10;
-    public static final int BUFFER_CONEXION  = TIEMPO_ESPERA_ESCALA; // Tiempo de espera mínimo por escala
     public static final int MAX_TRANSBORDOS  = 3;
     public static final int MAX_RUTAS        = 10;
 
+    private final int tiempoEsperaEscala;
     private final Map<String, Aeropuerto>  aeropuertos;
     private final Map<String, List<Vuelo>> vuelosPorOrigen;
 
-    public RedLogistica(Collection<Aeropuerto> aeropuertos, Collection<Vuelo> vuelos) {
+    public RedLogistica(Collection<Aeropuerto> aeropuertos, Collection<Vuelo> vuelos, int tiempoEsperaEscala) {
+        this.tiempoEsperaEscala = tiempoEsperaEscala;
         this.aeropuertos      = new HashMap<>();
         this.vuelosPorOrigen  = new HashMap<>();
 
@@ -66,7 +66,7 @@ public class RedLogistica {
                     .getOrDefault(estado.aeropuertoActual, Collections.emptyList());
 
             for (Vuelo vuelo : vuelosDisponibles) {
-                LocalDateTime proximaSalida = vuelo.getProximaSalidaGMT(estado.tiempoActual, BUFFER_CONEXION);
+                LocalDateTime proximaSalida = vuelo.getProximaSalidaGMT(estado.tiempoActual, tiempoEsperaEscala);
                 java.time.LocalDate fechaLocal = proximaSalida.plusHours(vuelo.getOrigen().getGmt()).toLocalDate();
                 String key = vuelo.getId() + ":" + fechaLocal.toString();
 
@@ -122,7 +122,7 @@ public class RedLogistica {
         if (ruta.isEmpty()) return Long.MAX_VALUE;
         LocalDateTime t = recepcionGMT;
         for (Vuelo v : ruta) {
-            LocalDateTime salida = v.getProximaSalidaGMT(t, BUFFER_CONEXION);
+            LocalDateTime salida = v.getProximaSalidaGMT(t, tiempoEsperaEscala);
             t = v.getLlegadaGMT(salida);
         }
         return Duration.between(recepcionGMT, t).toMinutes();

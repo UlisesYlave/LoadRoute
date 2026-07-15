@@ -6,7 +6,7 @@ import { API_ENDPOINTS } from '@/config/constants';
 import { RutaResponse, SimulacionJob } from '@/types/rutas';
 import {
   IconChart, IconBolt, IconRefresh, IconBuilding, IconPlane, IconPackage,
-  IconClock, IconWarning, IconCheck, IconFolder, IconCalendar
+  IconClock, IconWarning, IconCheck, IconFolder, IconCalendar, IconSettings
 } from '@/components/icons';
 
 interface ControlPanelProps {
@@ -132,6 +132,17 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const [activeJobs, setActiveJobs] = useState<Record<number, { jobId: string; fechaInicio?: string; fechaFin?: string }>>({});
   const [estaUniendose, setEstaUniendose] = useState(false);
+
+  const [tiempoEsperaEscala, setTiempoEsperaEscala] = useState(10);
+  const [tiempoEsperaDestino, setTiempoEsperaDestino] = useState(15);
+  const [saParams, setSaParams] = useState(1);
+  const [kParams, setKParams] = useState(80);
+  const [paramsAbiertos, setParamsAbiertos] = useState(false);
+
+  useEffect(() => {
+    if (escenario === 1) setKParams(80);
+    else if (escenario === 3) setKParams(140);
+  }, [escenario]);
 
   useEffect(() => {
     const fetchActiveJobs = async () => {
@@ -273,8 +284,10 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
         esSimulacionPeriodo ? fechaInicioBackend : undefined,
         escenario === 1 ? fechaFinBackend : undefined,
         'sa',
-        undefined,
-        undefined,
+        tiempoEsperaEscala,
+        tiempoEsperaDestino,
+        saParams,
+        kParams,
         (job) => {
           setProgreso(job);
           if (onProgressJob) onProgressJob(job);
@@ -448,9 +461,57 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
                   })}
                 </div>
               )}
+              
+              {/* Sección Parámetros del Algoritmo (Solo Periodo o Colapso) */}
+              {esSimulacionPeriodo && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => setParamsAbiertos(open => !open)}
+                    className="w-full rounded-lg border border-slate-700/60 bg-slate-800/35 px-3 py-2.5 text-left transition-all hover:border-blue-500/40 hover:bg-blue-500/5"
+                    aria-expanded={paramsAbiertos}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                          <IconSettings size={15} /> Parámetros del Algoritmo
+                        </h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5">
+                          Configuración técnica de ruteo
+                        </p>
+                      </div>
+                      <span className={`text-slate-400 transition-transform ${paramsAbiertos ? 'rotate-180' : ''}`} aria-hidden>
+                        ▾
+                      </span>
+                    </div>
+                  </button>
+
+                  {paramsAbiertos && (
+                    <div className="mt-2 space-y-2 rounded-lg border border-slate-700/60 bg-slate-800/30 p-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-slate-300 uppercase tracking-wider">Espera en Escala (min)</label>
+                        <input type="number" min="0" className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 text-right focus:outline-none focus:border-blue-500/60" value={tiempoEsperaEscala} onChange={e => setTiempoEsperaEscala(Number(e.target.value))} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-slate-300 uppercase tracking-wider">Espera en Destino (min)</label>
+                        <input type="number" min="0" className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 text-right focus:outline-none focus:border-blue-500/60" value={tiempoEsperaDestino} onChange={e => setTiempoEsperaDestino(Number(e.target.value))} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-slate-300 uppercase tracking-wider font-semibold">Salto del Algoritmo (SA)</label>
+                        <input type="number" min="1" className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 text-right focus:outline-none focus:border-blue-500/60" value={saParams} onChange={e => setSaParams(Number(e.target.value))} />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-slate-300 uppercase tracking-wider font-semibold">Constante K</label>
+                        <input type="number" min="1" className="w-16 bg-slate-900 border border-slate-700 rounded px-1.5 py-1 text-xs text-slate-200 text-right focus:outline-none focus:border-blue-500/60" value={kParams} onChange={e => setKParams(Number(e.target.value))} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Columna derecha: Fechas + Hora + Duración */}
+
             {esSimulacionPeriodo && (
             <div className="flex flex-col gap-2">
               <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">

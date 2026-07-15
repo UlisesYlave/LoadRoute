@@ -46,7 +46,11 @@ public class RutasController {
             @RequestPart(value = "enviosFiles", required = false)     List<MultipartFile> enviosFiles,
             @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
             @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
-            @RequestParam(value = "fechaFin",    required = false)    String fechaFin
+            @RequestParam(value = "fechaFin",    required = false)    String fechaFin,
+            @RequestParam(value = "tiempoEsperaEscala",  required = false) Integer tiempoEsperaEscala,
+            @RequestParam(value = "tiempoEsperaDestino", required = false) Integer tiempoEsperaDestino,
+            @RequestParam(value = "sa",          required = false) Integer sa,
+            @RequestParam(value = "k",           required = false) Integer k
     ) throws IOException {
         procesarArchivos(aeropuertosFile, vuelosFile, enviosFiles);
         validarDatos();
@@ -57,7 +61,11 @@ public class RutasController {
                 null,
                 escenario,
                 fechaInicio,
-                fechaFin
+                fechaFin,
+                tiempoEsperaEscala,
+                tiempoEsperaDestino,
+                sa,
+                k
         );
         return ResponseEntity.ok(response);
     }
@@ -70,6 +78,10 @@ public class RutasController {
             @RequestParam(value = "escenario",   defaultValue = "1") int escenario,
             @RequestParam(value = "fechaInicio", required = false)    String fechaInicio,
             @RequestParam(value = "fechaFin",    required = false)    String fechaFin,
+            @RequestParam(value = "tiempoEsperaEscala",  required = false) Integer tiempoEsperaEscala,
+            @RequestParam(value = "tiempoEsperaDestino", required = false) Integer tiempoEsperaDestino,
+            @RequestParam(value = "sa",          required = false) Integer sa,
+            @RequestParam(value = "k",           required = false) Integer k,
             @RequestHeader(value = "X-Session-ID", required = false)  String sessionId
     ) throws IOException {
         procesarArchivos(aeropuertosFile, vuelosFile, enviosFiles);
@@ -79,6 +91,10 @@ public class RutasController {
                 escenario,
                 fechaInicio,
                 fechaFin,
+                tiempoEsperaEscala,
+                tiempoEsperaDestino,
+                sa,
+                k,
                 sessionId
         ));
     }

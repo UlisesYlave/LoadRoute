@@ -34,6 +34,8 @@ export async function ejecutarSimulacion(
   fechaInicio?: string,  // formato YYYYMMDD o YYYYMMDDHHmm, opcional
   fechaFin?: string,     // formato YYYYMMDD o YYYYMMDDHHmm, opcional
   algoritmos: AlgoritmoSeleccion = 'sa',
+  tiempoEsperaEscala?: number,
+  tiempoEsperaDestino?: number,
   sa?: number,
   k?: number,
   onProgress?: (job: SimulacionJob) => void,
@@ -47,6 +49,8 @@ export async function ejecutarSimulacion(
     fechaInicio,
     fechaFin,
     algoritmos,
+    tiempoEsperaEscala,
+    tiempoEsperaDestino,
     sa,
     k
   );
@@ -63,6 +67,8 @@ export async function iniciarSimulacion(
   fechaInicio?: string,
   fechaFin?: string,
   algoritmos: AlgoritmoSeleccion = 'sa',
+  tiempoEsperaEscala?: number,
+  tiempoEsperaDestino?: number,
   sa?: number,
   k?: number
 ): Promise<SimulacionJob> {
@@ -85,6 +91,8 @@ export async function iniciarSimulacion(
   if (fechaInicio) params.set('fechaInicio', fechaInicio);
   if (fechaFin) params.set('fechaFin', fechaFin);
   params.set('algoritmos', algoritmos);
+  if (tiempoEsperaEscala !== undefined) params.set('tiempoEsperaEscala', String(tiempoEsperaEscala));
+  if (tiempoEsperaDestino !== undefined) params.set('tiempoEsperaDestino', String(tiempoEsperaDestino));
   if (sa !== undefined) params.set('sa', String(sa));
   if (k !== undefined) params.set('k', String(k));
 
@@ -196,6 +204,9 @@ async function esperarResultadoSimulacion(
       }
 
       if (jobStatus.status === 'ERROR') {
+        if (todosLosChunks.length > 0) {
+          return todosLosChunks;
+        }
         throw new Error(jobStatus.error || jobStatus.message || 'La simulacion fallo');
       }
     } catch (err) {
