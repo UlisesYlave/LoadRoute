@@ -1,5 +1,7 @@
 import { RutaMuestra, TramoDTO } from '@/types/rutas';
 
+export const TIEMPO_ESPERA_DESTINO = 15;
+
 type IntervaloCargaAeropuerto = {
   inicio: number;
   fin: number;
@@ -55,6 +57,17 @@ export function calcularCargaAeropuertoActual(
         total += ruta.maletas;
       }
     }
+
+    // Calcular ocupación en el destino final
+    const ultimoVuelo = ruta.tramos[ruta.tramos.length - 1];
+    const llegadaFinal = llegadaTotalMinutos(ultimoVuelo);
+    if (
+      airportCode === ultimoVuelo.destino &&
+      simTotalMinutos >= llegadaFinal &&
+      simTotalMinutos <= llegadaFinal + TIEMPO_ESPERA_DESTINO
+    ) {
+      total += ruta.maletas;
+    }
   }
 
   return total;
@@ -99,6 +112,16 @@ export function calcularUltimasCargasAeropuertos(
         ruta.maletas
       );
     }
+
+    // Agregar intervalo de ocupación en el destino final
+    const ultimoVuelo = ruta.tramos[ruta.tramos.length - 1];
+    agregarIntervaloCarga(
+      intervalos,
+      ultimoVuelo.destino,
+      llegadaTotalMinutos(ultimoVuelo),
+      llegadaTotalMinutos(ultimoVuelo) + TIEMPO_ESPERA_DESTINO,
+      ruta.maletas
+    );
   }
 
   const cargas: Record<string, number> = {};
@@ -180,6 +203,20 @@ export function obtenerEnviosEnAeropuertoActual(
         result.push(ruta);
         break;
       }
+    }
+
+    // Comprobar si está en su espera de destino final
+    const ultimoVuelo = ruta.tramos[ruta.tramos.length - 1];
+    const llegadaFinal = llegadaTotalMinutos(ultimoVuelo);
+    if (
+      airportCode === ultimoVuelo.destino &&
+      simTotalMinutos >= llegadaFinal &&
+      simTotalMinutos <= llegadaFinal + TIEMPO_ESPERA_DESTINO
+    ) {
+      if (!result.includes(ruta)) {
+        result.push(ruta);
+      }
+      continue;
     }
   }
 

@@ -12,6 +12,7 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import { RutaResponse, AeropuertoDTO, FiltrosAvionesMapa, RutaMuestra, TramoDTO } from '@/types/rutas';
+import { TIEMPO_ESPERA_DESTINO } from '@/utils/capacidad';
 import { IconMap } from '@/components/icons';
 import 'leaflet/dist/leaflet.css';
 import { EnfocarAvion } from './EnfocarAvion';
@@ -866,6 +867,16 @@ function construirIndiceCargasAeropuertos(rutas: RutaMuestra[]): IndicesCargaAer
         ruta.maletas
       );
     }
+
+    // Agregar tiempo de espera en el destino final
+    const ultimoVuelo = ruta.tramos[ruta.tramos.length - 1];
+    agregarIntervaloCarga(
+      intervalos,
+      ultimoVuelo.destino,
+      llegadaTotalMinutos(ultimoVuelo),
+      llegadaTotalMinutos(ultimoVuelo) + TIEMPO_ESPERA_DESTINO,
+      ruta.maletas
+    );
   }
 
   const indices: IndicesCargaAeropuertos = {};

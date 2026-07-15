@@ -16,7 +16,8 @@ import java.util.*;
  */
 public class RedLogistica {
 
-    public static final int BUFFER_CONEXION  = 30;
+    public static final int TIEMPO_ESPERA_ESCALA = 10;
+    public static final int BUFFER_CONEXION  = TIEMPO_ESPERA_ESCALA; // Tiempo de espera mínimo por escala
     public static final int MAX_TRANSBORDOS  = 3;
     public static final int MAX_RUTAS        = 10;
 
