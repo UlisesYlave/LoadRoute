@@ -141,6 +141,7 @@ export default function ControlPanel({ escenario, setEscenario, onResultado, onE
 
   useEffect(() => {
     if (escenario === 1) setKParams(80);
+    else if (escenario === 2) setKParams(1);
     else if (escenario === 3) setKParams(140);
   }, [escenario]);
 
